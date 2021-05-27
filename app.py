@@ -1,3 +1,9 @@
+#### Resources ####
+# Client side callbacks with js: https://github.com/covid19-dash/covid-dashboard/blob/master/app.py
+# https://devcenter.heroku.com/articles/git
+# https://github.com/emcarthur/neanderthal-heritability-app
+# https://stackoverflow.com/questions/47949173/deploy-a-python-dash-app-to-heroku-using-conda-environments-instead-of-virtua
+
 #### IMPORT DEPENDENCIES ####
 
 import dash
@@ -75,7 +81,7 @@ fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(0,'rd',0.01,20)
 
 
 #### CREATE APP COMPONENTS ####
-app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP]) # Dash app with bootstrap css
+app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True) # Dash app with bootstrap css
 server = app.server
 
 
@@ -165,9 +171,9 @@ app.layout = dbc.Container([
 #### CALLBACKS AND INTERACTIVE CONTENT ####
 
 # Loading figure 1
-@app.callback(Output("loading-icon", "children"))
+@app.callback(Output("loading-icon", "children"), Input("dummy", "children"))
 # Loading figure 2
-@app.callback(Output("loading-icon2", "children"))
+@app.callback(Output("loading-icon2", "children"), Input("dummy",'children'))
 
 # Main callback which updates when you click "submit" or any of the example buttons and outputs the two graphs (and updates the parameter control panel)
 @app.callback(
