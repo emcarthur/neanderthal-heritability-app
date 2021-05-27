@@ -302,4 +302,5 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,directionality, se
 
     return af_fig, dist_fig, intialDistSkew, directionality, selectionAmount, count # update the figures and the parameter panels
 
-app.run_server()
+if __name__ == "__main__":
+    app.run_server()
