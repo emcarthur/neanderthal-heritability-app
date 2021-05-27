@@ -1,0 +1,16 @@
+name: dash_app #Environment name
+dependencies:
+  - python=3.8.10
+  - pip
+  - pip:
+    - dash
+    - dash-renderer
+    - dash-core-components
+    - dash-html-components
+    - dash-bootstrap-components
+    - plotly
+    - gunicorn # for app deployment
+    - numpy
+    - pandas
+    - matplotlib
+    - scipy
