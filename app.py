@@ -1,7 +1,9 @@
 #### Resources ####
 # Client side callbacks with js: https://github.com/covid19-dash/covid-dashboard/blob/master/app.py
 # https://devcenter.heroku.com/articles/git
+# https://devcenter.heroku.com/articles/git
 # https://github.com/emcarthur/neanderthal-heritability-app
+# https://neanderthal-heritability.herokuapp.com/
 # https://stackoverflow.com/questions/47949173/deploy-a-python-dash-app-to-heroku-using-conda-environments-instead-of-virtua
 
 #### IMPORT DEPENDENCIES ####
