@@ -4,7 +4,9 @@
 # https://devcenter.heroku.com/articles/git
 # https://github.com/emcarthur/neanderthal-heritability-app
 # https://neanderthal-heritability.herokuapp.com/
+# https://stackoverflow.com/questions/60938972/dash-implementing-a-trace-highlight-callback
 # https://stackoverflow.com/questions/47949173/deploy-a-python-dash-app-to-heroku-using-conda-environments-instead-of-virtua
+# to push app to github & heroku git push origin main and git push heroku main
 
 #### IMPORT DEPENDENCIES ####
 
@@ -23,6 +25,18 @@ from scipy.stats import skewnorm
 import plotly.figure_factory as ff
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
+from scipy.stats.kde import gaussian_kde
+from plotly.subplots import make_subplots
+
+
+
+
+app = dash.Dash(
+    external_stylesheets=[dbc.themes.BOOTSTRAP],
+    meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}],
+    suppress_callback_exceptions=True
+)
+server = app.server
 
 #### FUNCTIONS FOR  AF TRAJECTORY VIZ ####
 
@@ -54,22 +68,14 @@ def linestyle(array):
         return 'solid'
 
 # Select the distribution of fitness weights (represented as colors) based on input values
-def selectFitnessWeights(intialDistSkew, directionality, selectionAmount, count):
+def selectFitnessWeights(intialDistSkew, riskDecreasingPressure, riskIncreasingPressure, count):
     # initialDistSkew between -2 to +2
-    # directionality is a string: rd, ri, both, or none
-    # selectionAmount 0 to +0.1
+    # riskDecreasingPressure & riskIncreasingPressure is between -0.05 and 0.05
     # count 5 to 100
 
     fitness_norm = fitness_norm = [skewnorm.ppf(x, intialDistSkew) for x in np.linspace(0.01,0.99,count)]
     fitness_01 = scaleToRange(fitness_norm, realRange=(-2.3,2.3))
-    if directionality == 'rd':
-        fitness_weights = selectionAmount/((2.5)**3)*-np.array(fitness_norm)**3
-    if directionality == 'ri':
-        fitness_weights = selectionAmount/((2.5)**3)*np.array(fitness_norm)**3
-    if directionality == 'both':
-        fitness_weights = selectionAmount/((2.5)**3)*abs(np.array(fitness_norm)**3)
-    if directionality == 'none':
-        fitness_weights = selectionAmount/((2.5)**3)*-abs(np.array(fitness_norm)**3)
+    fitness_weights = [ riskIncreasingPressure/((2.5)**3)*x**3 if x > 0 else -riskDecreasingPressure/((2.5)**3)*x**3 for x in fitness_norm]
 
     return (fitness_weights, fitness_norm, fitness_01)
 
@@ -78,97 +84,270 @@ def selectFitnessWeights(intialDistSkew, directionality, selectionAmount, count)
 af_df = pd.read_csv("simulations.csv") # read in
 af_df['fitness_weight'] = np.round(af_df['fitness_weight'],3) #!remove
 cmap = LinearSegmentedColormap.from_list('BgR',['#0024af','#e2dee6','#b70000']) # generate color map
-fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(0,'rd',0.01,20) # intial values
+#fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(0,-0.03,-0.03,30) # intial values
 
 
+#### STYLES ####
+# the style arguments for the sidebar. We use position:fixed and a fixed width
+SIDEBAR_STYLE = {
+    "position": "fixed",
+    "top": 62.5,
+    "left": 0,
+    "bottom": 0,
+    "width": "27rem",
+    "height": "100%",
+    "z-index": 1,
+    "overflow-x": "hidden",
+    "transition": "all 0.5s",
+    "padding": "0.5rem 1rem",
+    "background-color": "#f8f9fa",
+}
 
-#### CREATE APP COMPONENTS ####
-app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP], suppress_callback_exceptions=True) # Dash app with bootstrap css
-server = app.server
+SIDEBAR_HIDEN = {
+    "position": "fixed",
+    "top": 62.5,
+    "left": "-27rem",
+    "bottom": 0,
+    "width": "27rem",
+    "height": "100%",
+    "z-index": 1,
+    "overflow-x": "hidden",
+    "transition": "all 0.5s",
+    "padding": "0rem 0rem",
+    "background-color": "#f8f9fa",
+}
 
+# the styles for the main content position it to the right of the sidebar and
+# add some padding.
+CONTENT_STYLE = {
+    "transition": "margin-left .5s",
+    "margin-left": "29rem",
+    "margin-right": "2rem",
+    "padding": "2rem 1rem",
+}
+
+CONTENT_STYLE1 = {
+    "transition": "margin-left .5s",
+    "margin-left": "2rem",
+    "margin-right": "2rem",
+    "padding": "2rem 1rem",
+}
+
+#### LAYOUT ITEMS ####
+
+## Sidebar questions ##
 
 # Question 1 about skew of neanderthal alleles with respect to trait-association
-question1 = dbc.Row([
-    html.H3("(1) At the time of introgression, how were the majority of Neanderthal alleles associated with the trait?",style={'font-size':"14px", "margin-top": '10px'}),
-    html.P('More Meanderthal alleles were:' ,style={'font-size':'11px'}),
-    html.Div(dcc.Slider(
+question1 = dbc.FormGroup([
+    dbc.Label("At the time of introgression, how were the majority of Neanderthal alleles associated with the trait?",style={'font-size':"13px",'font-weight':'bold'},html_for="initialDistSkew"),
+    html.P('More Neanderthal alleles were:' ,style={'font-size':'11px'}),
+    dcc.Slider(
         id='intialDistSkew', min=-3, max=3,
-        value=0, step=0.01, marks={-3:'Risk-decreasing', 0:'Equally risk-decreasing and increasing',3:'Risk-increasing'}),style = {'width': '80%', 'padding-left': '15%', 'padding-right':'5%'}),
-],style={'padding-bottom':'70px','padding-left':'10px','padding-right':'10px'})
+        value=0, step=0.01,
+        marks={-3:{'label':'Risk-decreasing', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
+        0:{'label':'Equally risk-increasing and decreasing', 'style':{'font-size':'12px'}},
+        3:{'label':'Risk-increasing', 'style':{'font-size':'12px'}}}
+        ,),
+],style={'margin-bottom':'30px'})
 
 # Question 2 about fitness relationship to trait
-question2 = dbc.Row([
-    html.H3("(2) Was there a directionality bias in the trait-associated introgressed alleles that were beneficial to human fitness in the Eurasian environment?", style={'font-size':"14px"}),
-    dcc.RadioItems(
-        options=[
-            {'label': 'Yes, risk-DECREASING (blue) alleles were beneficial', 'value': 'rd'},
-            {'label': 'Yes, risk-INCREASING (red) alleles were beneficial (e.g. sunburn)', 'value': 'ri'},
-            {'label': 'No, all trait-associated variation was BENEFICIAL regardless of direction of effect', 'value': 'both'},
-            {'label': 'No, all trait-associated variation was HARMFUL regardless of direction of effect', 'value': 'none'}
-        ],
-        value='rd', id='directionality', style={'font-size':'11px'}
-    )
-],style={'padding-bottom':'10px','padding-left':'10px','padding-right':'10px'})
+question2 = dbc.FormGroup([
+    dbc.Label("What were the selective pressures on risk-DECREASING alleles?",style={'font-size':"13px",'font-weight':'bold'},html_for="riskDecreasingPressure"),
+    dcc.Slider(
+        id='riskDecreasingPressure', min=-0.05, max=0.05,
+        value=-0.01, step=0.0001,
+        marks={-0.05:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
+        0:{'label':'Neutral', 'style':{'font-size':'12px'}},
+        0.05:{'label':'Positive', 'style':{'font-size':'12px'}}}
+        ,),
+])
 
-# Question 3 about strength of selection
-question3 = dbc.Row([
-    html.H3("(3) What was the strength of selection on trait-associated variation?", style={'font-size':"14px"}),
-    html.Div(dcc.Slider(
-        id='selectionAmount', min=0, max=0.05,
-        value=0.01, step=0.0001, marks={0:'No selection',0.05:'Strong selection'}),style = {'width': '80%', 'padding-left': '15%', 'padding-right':'5%'}),
-],style={'padding-bottom':'50px','padding-left':'10px','padding-right':'10px'})
+# Question 3 about fitness relationship to trait
+question3 = dbc.FormGroup([
+    dbc.Label("What were the selective pressures on risk-INCREASING alleles?",style={'font-size':"13px",'font-weight':'bold'},html_for="riskIncreasingPressure"),
+    dcc.Slider(
+        id='riskIncreasingPressure', min=-0.05, max=0.05,
+        value=-0.01, step=0.0001,
+        marks={-0.05:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
+        0:{'label':'Neutral', 'style':{'font-size':'12px'}},
+        0.05:{'label':'Positive', 'style':{'font-size':'12px'}}}
+        ,),
+])
 
 # Question 4 about number of variants
-question4 = dbc.Row([
-    html.H3("(4) How many variants do you want to visualize the allele frequency trajectory for?", style={'font-size':"14px", "margin-top": '15px'}),
-    html.Div([html.P('Between 5-100:',style={'padding-right':'10px'}),dcc.Input(id='count', type='number', min=5, max=100, step=1, value=20,style={'height':'16px'}),html.P('(Tip: The left figure is easier to interpret with a small sample, while the right is better with larger numbers.)',style={'font-size':'8px'})],style={'font-size':'11px','display':'flex'}),
-],style={'padding-bottom':'10px','padding-left':'10px','padding-right':'10px'})
+question4 = dbc.FormGroup(
+    [
+        dbc.Label("How many variants to visualize? (5-100)", html_for="count", width=9, style={'font-size':"13px",'font-weight':'bold'}),
+        dbc.Col(dbc.Input(type="number", min=5,max=100,step=1, value=30, id='count',style={'font-size':"12px",'margin-top':'5px'}), width=3),
+    ],
+    row=True,
+)
 
 # Optional buttons for examples
-optional = dbc.Row([
-    html.H3("Or try some example settings:", style={'font-size':"14px", "margin-top": '15px'}),
-    dbc.Button("Loss of trait-associated variants leading to heritability depletion (Most traits)", outline=True, color="secondary", className="mr-1",size='sm',style={'text-size':'8px'}, id='example1'),
-    dbc.Button("Maintenence of trait-associated variants leading to heritability enrichment with bi-directionality (Autoimmunity, White blood cell count)", outline=True, color="secondary", className="mr-1",size='sm',style={'text-size':'8px'},id='example2'),
-    dbc.Button("Loss of risk-conferring variants leading to heritability depletion with remaining alleles conferring uni-directional effects (Schizophrenia, Anorexia)", outline=True, color="secondary", className="mr-1",size='sm',style={'text-size':'8px'}, id='example3'),
-    dbc.Button("Maintenence of risk-conferring variants leading to heritability enrichment with remaining alleles conferring uni-directional effects (Sunburn, Balding)", outline=True, color="secondary", className="mr-1",size='sm',style={'text-size':'8px'},id='example4'),
-], style={'padding-left':'10px','padding-right':'10px'})
+optional = html.Div([
+    html.H3("Or try some example settings:", style={'font-size':"13px", 'font-weight':'bold',"margin-top": '0px'}),
+    dbc.Row([
+        dbc.Col(dbc.Button("Loss of risk-conferring variants leading to heritability depletion with remaining alleles conferring uni-directional effects (Schizophrenia, Anorexia)", outline=True, color="secondary", className="mr-1",size='sm',style={'font-size':'10px'}, id='scz_example',block=True),width=6,style={'padding':'2px'}),
+        dbc.Col(dbc.Button("Maintenence of risk-conferring variants leading to heritability enrichment with remaining alleles conferring uni-directional effects (Sunburn, Balding)", outline=True, color="secondary", className="mr-1",size='sm',style={'font-size':'10px'},id='sunburn_example',block=True),width=6,style={'padding':'2px'}),
+    ]),
+    dbc.Row([
+        dbc.Col(dbc.Button("Loss of trait-associated variants leading to heritability depletion (Most traits)", outline=True, color="secondary", className="mr-1",size='sm',style={'font-size':'10px'}, id='most_example',block=True),width=6,style={'padding':'2px'}),
+        dbc.Col(dbc.Button("Maintenence of trait-associated variants leading to heritability enrichment with bi-directionality (Autoimmunity, White blood cell count)", outline=True, color="secondary", className="mr-1",size='sm',style={'font-size':'10px'},id='wbc_example',block=True),width=6,style={'padding':'2px'}),
+    ]),
+], style={'display':'inline'})
 
 # Combine Q1-4 into one set of controls
-controls = dbc.Card([
-    html.H3('Controls:',style={'font-size':'18px'}),
+controls = html.Div([
     question1,
     question2,
     question3,
     question4,
-    dbc.Button("Submit", color="secondary", id='submit'),
+    dbc.Button("Submit", color="success", id='submit',size='sm',block=True),
     html.Hr(),
     optional,
-], body=True)
-
-# Jumbotron header with instructions
-jumbotron = dbc.Jumbotron([
-    html.H3("Visualizing the theoretical evolutionary trajectory of trait-associated Neanderthal-introgressed alleles", style={'font-size':'22px'}),
-    html.P("2-4% of modern Eurasian genomes are inherited from our Neanderthal ancestors. Since introgression, these variants have had different evolutionary paths. Some variants were likely harmful and lost through drift or selection. Other variants may have provided adaptive benefits to humans as they migrated out of Africa. ", className="lead", style={'font-size':'13px'}),
-    html.P("In our paper: McArthur, Rinker & Capra 'Quantifying the contribution of Neanderthal introgression to the heritability of complex traits'[Link], we propose a model that variation associated with different traits experienced different evolutionary histories leading to patterns in GWAS we see today. ", className="lead", style={'font-size':'13px'}),
-    html.P("We built this tool to explore and visualize some different theoretical trajectories of variants associated with traits. Play around with some of the parameters or examples on the left to see what might have happened to introgressed variants since hybridization depending on their strength and direction of trait-association.", className="lead", style={'font-size':'13px'}),
-],style={'padding':'1rem'})
+])
 
 
-#### APP LAYOUT ####
-app.layout = dbc.Container([
-    dbc.Row(
+## Menu/NavBar/Sidebar ##
+
+dropdown = dbc.DropdownMenu(
+            [
+                dbc.DropdownMenuItem("Home", href="/"),
+                dbc.DropdownMenuItem("Methods details", href="/methods"),
+                dbc.DropdownMenuItem("GitHub Code", href="https://github.com/emcarthur/neanderthal-heritability-app"),
+                dbc.DropdownMenuItem("Paper", href="https://www.biorxiv.org/content/10.1101/2020.06.08.140087v1"),
+            ],
+            in_navbar=True,
+            label="Menu items",
+            className="ml-auto", #className="ml-auto flex-nowrap mt-3 mt-md-0",
+            right=True,
+        )
+
+navbar = dbc.Navbar(
+    [
+            dbc.Row(
                 [
-                    dbc.Col([
-                        dbc.Row(dbc.Col(jumbotron, width=12)),
-                        dbc.Row([
-                            dbc.Col(dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='af_graph'))], type="circle"),width=7,style={'padding':'0px'}),
-                            dbc.Col(dcc.Loading(id = "loading-icon2", children=[html.Div(dcc.Graph(id='dist_graph'))], type="circle"),width=5,style={'padding':'0px'}),
-                        ])
-                    ], width=9),
-                    dbc.Col(controls, width=3),
+                    dbc.Col(dbc.Button("▸ Toggle sidebar controls", color="secondary", className="mr-1", id="btn_sidebar")),
                 ],
+                align="center",
+                no_gutters=True,
             ),
-],fluid=True)
+        dropdown
+    ],
+    color="dark",
+    dark=True,
+)
+
+sidebar = html.Div([
+        controls,
+    ],
+    id="sidebar",
+    style=SIDEBAR_STYLE,
+)
+
+content = html.Div(
+    id="page-content",
+    style=CONTENT_STYLE
+)
+
+app.layout = html.Div(
+    [
+        dcc.Store(id='side_click'),
+        dcc.Location(id="url"),
+        navbar,
+        sidebar,
+        content,
+    ],
+)
+#jumbotron = dbc.Row([dbc.Col(dcc.Markdown('''
+#### Visualizing the theoretical evolutionary trajectory of trait-associated Neanderthal-introgressed alleles
+
+# <div class="col-md-12">
+#    <div class="pull-left"><img src="YourImage.png"/></div>
+#    <div class="pull-left">Your text goes here......</div>
+# </div>
+jumbotron =  dbc.Row([
+        html.H3("Visualizing the theoretical evolutionary trajectory of trait-associated Neanderthal-introgressed alleles", style={'font-size':'20px'}),
+        dbc.Row([
+            dbc.Col([
+                html.P("2-4% of modern Eurasian genomes are inherited from our Neanderthal ancestors. Since introgression ➀, these variants have had different evolutionary paths. Some variants were likely harmful and lost through drift or selection. Other variants may have provided adaptive benefits to humans as they migrated out of Africa.", className="lead", style={'font-size':'13px'}),
+                html.P("In our paper, we propose a model that variation associated with different traits experienced different evolutionary histories leading to patterns in GWAS we see today ➁. ", className="lead", style={'font-size':'13px'}),
+                ],width=6),
+            dbc.Col(html.Img(src="./assets/tree.png",alt="tree",style={'width':'100%','height':'auto'}),width=6)
+        ]),
+        html.P("We built this tool to explore and visualize some different theoretical trajectories of variants associated with traits. Toggle the sidebar controls (upper left) to explore what might have happened to trait-associated introgressed variants since hybridization.", className="lead", style={'font-size':'13px'}),
+    ])
+
+main_page = dbc.Container(
+            [
+                jumbotron,
+                html.Hr(),
+                dbc.Row([
+                    dbc.Col(html.H2("Trait-associated distribution of introgressed variants at hybridization", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=3),
+                    dbc.Col(html.H2("Allele frequency trajectory of introgressed variants", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=6),
+                    dbc.Col(html.H2("Trait-associated distribution of REMAINING introgressed variants at present", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=3),
+                ]),
+                dbc.Row([
+                    dbc.Col([dcc.Loading(id = "loading-icon2", children=[html.Div(dcc.Graph(id='dist1_graph'))], type="circle"),
+                                html.Div(html.Img(src="./assets/arrow1.png",alt="arrow",style={'height':'auto','width':'70px'}), style={'text-align':'right','display':'block',})],
+                                width=3,style={'padding':'0px'}),
+                    dbc.Col(dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='af_graph'))], type="circle"),width=6),
+                    dbc.Col([dcc.Loading(id = "loading-icon2", children=[html.Div(dcc.Graph(id='dist2_graph'))], type="circle"),
+                                html.Div(html.Img(src="./assets/arrow2.png",alt="arrow",style={'height':'auto','width':'70px'}), style={'text-align':'left','display':'inline-block','padding-left':'10px'}),
+                                html.Div(html.Img(src="./assets/arrow3.png",alt="arrow",style={'height':'30px','width':'auto'}), style={'text-align':'center','display':'inline-block','padding-top':'10px','padding-left':'20px'}),
+                                html.P("Heritability and directionality patterns we can observe today in modern Eurasians", style={'padding-left':'20px','font-size':'13px','font-weight':'bold','text-align':'center'}),
+                                dcc.Markdown('''
+                                * Heritability enrichment or depletion
+                                    * Enrichment = introgressed variants are MORE associated with the trait (more area under red/blue curve)
+                                    * Depletion = introgressed variants are LESS associated with the trait (less area under red/blue curve)
+                                * Directionality of association
+                                  * Uni-directional = introgressed variants are more associated with risk OR protective directions (distribution skewed to left or right)
+                                  * Bi-directional = introgressed variants are equally associated with risk AND protective directions (distribution centered at zero)
+                                ''' ,style={'font-size':'12px'}) ], width=3,style={'padding':'0px'}),
+                    ])
+            ], style={'width':'100%','max-width':'none'}
+        )
+
+
+@app.callback(
+    [Output("sidebar", "style"),
+    Output("page-content", "style"),
+    Output("side_click", "data"),],
+    [Input("btn_sidebar", "n_clicks")],
+    [State("side_click", "data")],
+)
+def toggle_sidebar(n, nclick):
+    if n:
+        if nclick == "SHOW":
+            sidebar_style = SIDEBAR_HIDEN
+            content_style = CONTENT_STYLE1
+            cur_nclick = "HIDDEN"
+        else:
+            sidebar_style = SIDEBAR_STYLE
+            content_style = CONTENT_STYLE
+            cur_nclick = "SHOW"
+    else:
+        sidebar_style = SIDEBAR_HIDEN
+        content_style = CONTENT_STYLE1
+        cur_nclick = 'HIDDEN'
+
+    return sidebar_style, content_style, cur_nclick
+
+
+@app.callback(Output("page-content", "children"), [Input("url", "pathname")])
+def render_page_content(pathname):
+    if pathname in ["/", ""]:
+        return main_page
+    elif pathname == "/methods":
+        return html.P("Methods text to come here!")
+    # If the user tries to reach a different page, return a 404 message
+    return dbc.Jumbotron(
+        [
+            html.H1("404: Not found", className="text-danger"),
+            html.Hr(),
+            html.P(f"The pathname {pathname} was not recognised..."),
+        ]
+    )
 
 #### CALLBACKS AND INTERACTIVE CONTENT ####
 
@@ -180,52 +359,54 @@ app.layout = dbc.Container([
 # Main callback which updates when you click "submit" or any of the example buttons and outputs the two graphs (and updates the parameter control panel)
 @app.callback(
     [Output("af_graph", "figure"),
-    Output("dist_graph", "figure"),
+    Output("dist1_graph", "figure"),
+    Output("dist2_graph", "figure"),
     Output("intialDistSkew", "value"),
-    Output("directionality", "value"),
-    Output("selectionAmount", "value"),
+    Output("riskDecreasingPressure", "value"),
+    Output("riskIncreasingPressure", "value"),
     Output("count", "value")],
     [Input("submit","n_clicks"),
-    Input("example1","n_clicks"),
-    Input("example2","n_clicks"),
-    Input("example3","n_clicks"),
-    Input("example4","n_clicks")],
+    Input("most_example","n_clicks"),
+    Input("wbc_example","n_clicks"),
+    Input("scz_example","n_clicks"),
+    Input("sunburn_example","n_clicks")],
     [State("intialDistSkew", "value"),
-    State("directionality", "value"),
-    State("selectionAmount", "value"),
+    State("riskDecreasingPressure", "value"),
+    State("riskIncreasingPressure", "value"),
     State("count", "value"),
     ])
-def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,directionality, selectionAmount,count):
+def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPressure, riskIncreasingPressure,count):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] # what button was last pressed
 
     if 'submit' in changed_id: # if submit was last pressed, will use the input state for the 4 parameters
         if count is None: # in case the user sets an invalid "count" value
             count = 20
-    elif 'example1' in changed_id: # if example 1 was last pressed, set the 4 parameters
+    elif 'most_example' in changed_id: # if example 1 was last pressed, set the 4 parameters
         intialDistSkew=0
-        directionality='none'
-        selectionAmount=0.02
+        riskDecreasingPressure=-0.02
+        riskIncreasingPressure=-0.02
         count=30
-    elif 'example2' in changed_id: # if example 2 was last pressed, set the 4 parameters
+    elif 'wbc_example' in changed_id: # if example 2 was last pressed, set the 4 parameters
         intialDistSkew=0
-        directionality='both'
-        selectionAmount=0.02
+        riskDecreasingPressure=0.02
+        riskIncreasingPressure=0.02
         count=30
-    elif 'example3' in changed_id: # if example 2 was last pressed, set the 4 parameters
+    elif 'scz_example' in changed_id: # if example 2 was last pressed, set the 4 parameters
         intialDistSkew=1.2
-        directionality='rd'
-        selectionAmount=0.05
+        riskDecreasingPressure=0.05
+        riskIncreasingPressure=-0.05
         count=30
-    elif 'example4' in changed_id: # if example 2 was last pressed, set the 4 parameters
+    elif 'sunburn_example' in changed_id: # if example 2 was last pressed, set the 4 parameters
         intialDistSkew=1.5
-        directionality='ri'
-        selectionAmount=0.025
+        riskDecreasingPressure=-0.025
+        riskIncreasingPressure=0.025
         count=30
 
     # Pick the variants from the fitness distribution generated from the 4 input parameters
-    fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(intialDistSkew,directionality,selectionAmount,count)
+    fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(intialDistSkew,riskDecreasingPressure,riskIncreasingPressure,count)
     af_df['used'] = False
     fitness_remaining = []
+    fitness_remaining01 = []
 
     # FIGURE 1
     af_fig = go.Figure()
@@ -240,12 +421,15 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,directionality, se
             )
         if af[-1] > 0.05: # if variant was not "lost/rare" add it to the variants that remain
             fitness_remaining.append(fitness_norm[idx])
+            fitness_remaining01.append(fitness_01[idx])
+
 
     af_fig.update_layout( # update figure 1 layout
-        title="Allele frequency trajectory of introgressed variants",
         template='simple_white',
         xaxis_title="Generations",
         yaxis_title="Allele frequency",
+        height=360,
+        margin=dict(l=40,r=20,t=0,b=10),
         font=dict(
             size=9),
     )
@@ -264,45 +448,101 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,directionality, se
     )
 
     # FIGURE 2
-    if len(fitness_remaining) > 1:
-        hist_data = [fitness_remaining, fitness_norm]
-        group_labels = ['Remaining introgressed alleles in modern Eurasians','Introgressed alleles in hybrids']
-        colors = ['green', 'black']
-    else:
-        hist_data = [fitness_norm]
-        group_labels = ['Introgressed alleles in hybrids']
-        colors = ['black']
+    xx = np.linspace(-4,4,500)
+    kernel = gaussian_kde(fitness_norm)
+    kde_y = kernel(xx)
 
-    dist_fig = ff.create_distplot(hist_data, group_labels, show_hist=False, colors=colors)
+    dist1_fig = make_subplots(rows=2,cols=1,row_heights=[0.8,0.2])
+    dist1_fig.add_trace(go.Scatter(x=xx, y=kde_y, mode='lines',line=dict(color=to_cmap_rgb(0.5),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
+    dist1_fig.add_trace(go.Scatter(x=xx[xx <-1.5], y=kde_y[xx < -1.5], mode='lines',line=dict(color=to_cmap_rgb(0.2),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
+    dist1_fig.add_trace(go.Scatter(x=xx[xx >1.5], y=kde_y[xx > 1.5], mode='lines',line=dict(color=to_cmap_rgb(0.8),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
+    dist1_fig.add_vline(x=0,line_width=1.2,line_dash="dot", line_color='black',row=1,col=1)
+    for i,j in zip(fitness_norm,fitness_01):
+        dist1_fig.add_trace(go.Box(
+            x=np.array(i),
+            y=np.array(0),
+            marker_symbol='line-ns-open',
+            marker_color=to_cmap_rgb(j),
+            boxpoints='all',
+            jitter=0,
+            fillcolor='rgba(255,255,255,0)',
+            line_color='rgba(255,255,255,0)',
+            hoverinfo='skip',
+            showlegend=False,
+        ), row=2, col=1)
 
-    dist_fig.update_layout( # update figure 2 layout
-        title="Trait-associated distribution of introgressed alleles",
+
+    dist1_fig.update_layout( # update figure 2 layout
         template='simple_white',
-        xaxis_title="Trait-association direction",
-        yaxis_title="Density",
+        yaxis_title="Number of Variants",
+        yaxis2_title="Variants",
+        xaxis2_title="Trait-association direction",
         font=dict(
             size=9),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-            ),
+        margin=dict(l=10,r=10,t=30,b=10),
+        height=250,
     )
-    dist_fig.update_xaxes( # update figure 2 axis
-        range=[-3,3],
+    dist1_fig.update_xaxes( # update figure 2 axis
+        range=[-4,4],
         ticktext=["Protective", "No trait-association","Risk"],
-        tickvals=[-2.5, 0, 2.5],
+        tickvals=[-3.5, 0, 3.5],
         fixedrange=True,
         ticklen=0
     )
-    dist_fig.update_yaxes( # update figure 2 axis
+    dist1_fig.update_yaxes( # update figure 2 axis
         tickvals=[],
         fixedrange=True
     )
 
-    return af_fig, dist_fig, intialDistSkew, directionality, selectionAmount, count # update the figures and the parameter panels
+# FIGURE 2
+    xx = np.linspace(-4,4,500)
+    kernel = gaussian_kde(fitness_remaining)
+    kde_y = kernel(xx)
+
+    dist2_fig = make_subplots(rows=2,cols=1,row_heights=[0.8,0.2])
+    dist2_fig.add_trace(go.Scatter(x=xx, y=kde_y, mode='lines',line=dict(color=to_cmap_rgb(0.5),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
+    dist2_fig.add_trace(go.Scatter(x=xx[xx <-1.5], y=kde_y[xx < -1.5], mode='lines',line=dict(color=to_cmap_rgb(0.2),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
+    dist2_fig.add_trace(go.Scatter(x=xx[xx >1.5], y=kde_y[xx > 1.5], mode='lines',line=dict(color=to_cmap_rgb(0.8),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
+    dist2_fig.add_vline(x=0,line_width=1.2,line_dash="dot", line_color='black',row=1,col=1)
+    for i,j in zip(fitness_remaining,fitness_remaining01):
+        dist2_fig.add_trace(go.Box(
+            x=np.array(i),
+            y=np.array(0),
+            marker_symbol='line-ns-open',
+            marker_color=to_cmap_rgb(j),
+            boxpoints='all',
+            jitter=0,
+            fillcolor='rgba(255,255,255,0)',
+            line_color='rgba(255,255,255,0)',
+            hoverinfo='skip',
+            showlegend=False,
+        ), row=2, col=1)
+
+
+    dist2_fig.update_layout( # update figure 2 layout
+        template='simple_white',
+        yaxis_title="Number of Variants",
+        yaxis2_title="Variants",
+        xaxis2_title="Trait-association direction",
+        font=dict(
+            size=9),
+        margin=dict(l=10,r=10,t=30,b=10),
+        height=250,
+    )
+    dist2_fig.update_xaxes( # update figure 2 axis
+        range=[-4,4],
+        ticktext=["Protective", "No trait-association","Risk"],
+        tickvals=[-3.5, 0, 3.5],
+        fixedrange=True,
+        ticklen=0
+    )
+    dist2_fig.update_yaxes( # update figure 2 axis
+        tickvals=[],
+        fixedrange=True
+    )
+
+    return af_fig, dist1_fig, dist2_fig, intialDistSkew, riskDecreasingPressure, riskIncreasingPressure, count # update the figures and the parameter panels
+
 
 if __name__ == "__main__":
     app.run_server()
