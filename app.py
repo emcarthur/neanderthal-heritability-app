@@ -31,7 +31,7 @@ from plotly.subplots import make_subplots
 
 
 
-app = dash.Dash(
+app = dash.Dash(__name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
     meta_tags=[{'name': 'viewport', 'content': 'width=device-width, initial-scale=1'}],
     suppress_callback_exceptions=True
@@ -270,10 +270,10 @@ jumbotron =  dbc.Row([
         html.H3("Visualizing the theoretical evolutionary trajectory of trait-associated Neanderthal-introgressed alleles", style={'font-size':'20px'}),
         dbc.Row([
             dbc.Col([
-                html.P("2-4% of modern Eurasian genomes are inherited from our Neanderthal ancestors. Since introgression ➀, these variants have had different evolutionary paths. Some variants were likely harmful and lost through drift or selection. Other variants may have provided adaptive benefits to humans as they migrated out of Africa.", className="lead", style={'font-size':'13px'}),
-                html.P("In our paper, we propose a model that variation associated with different traits experienced different evolutionary histories leading to patterns in GWAS we see today ➁. ", className="lead", style={'font-size':'13px'}),
+                html.P("2-4% of modern Eurasian genomes are inherited from our Neanderthal ancestors. When introgressed into Eurasians, some variants were likely harmful and lost through drift or selection. Other variants may have provided adaptive benefits to humans as they migrated out of Africa.", className="lead", style={'font-size':'13px'}),
+                html.P("We propose a model that, since hybridization ➀, introgressed variation associated with different traits experienced different evolutionary histories leading to patterns in GWAS we see today ➁. ", className="lead", style={'font-size':'13px'}),
                 ],width=6),
-            dbc.Col(html.Img(src="./assets/tree.png",alt="tree",style={'width':'100%','height':'auto'}),width=6)
+            dbc.Col(html.Img(src=app.get_asset_url("tree.png"),alt="tree",style={'width':'100%','height':'auto'}),width=6)
         ]),
         html.P("We built this tool to explore and visualize some different theoretical trajectories of variants associated with traits. Toggle the sidebar controls (upper left) to explore what might have happened to trait-associated introgressed variants since hybridization.", className="lead", style={'font-size':'13px'}),
     ])
@@ -289,12 +289,12 @@ main_page = dbc.Container(
                 ]),
                 dbc.Row([
                     dbc.Col([dcc.Loading(id = "loading-icon2", children=[html.Div(dcc.Graph(id='dist1_graph'))], type="circle"),
-                                html.Div(html.Img(src="./assets/arrow1.png",alt="arrow",style={'height':'auto','width':'70px'}), style={'text-align':'right','display':'block',})],
+                                html.Div(html.Img(src=app.get_asset_url("arrow1.png"),alt="arrow",style={'height':'auto','width':'70px'}), style={'text-align':'right','display':'block',})],
                                 width=3,style={'padding':'0px'}),
                     dbc.Col(dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='af_graph'))], type="circle"),width=6),
                     dbc.Col([dcc.Loading(id = "loading-icon2", children=[html.Div(dcc.Graph(id='dist2_graph'))], type="circle"),
-                                html.Div(html.Img(src="./assets/arrow2.png",alt="arrow",style={'height':'auto','width':'70px'}), style={'text-align':'left','display':'inline-block','padding-left':'10px'}),
-                                html.Div(html.Img(src="./assets/arrow3.png",alt="arrow",style={'height':'30px','width':'auto'}), style={'text-align':'center','display':'inline-block','padding-top':'10px','padding-left':'20px'}),
+                                html.Div(html.Img(src=app.get_asset_url("arrow2.png"),alt="arrow",style={'height':'auto','width':'70px'}), style={'text-align':'left','display':'inline-block','padding-left':'10px'}),
+                                html.Div(html.Img(src=app.get_asset_url("arrow3.png"),alt="arrow",style={'height':'30px','width':'auto'}), style={'text-align':'center','display':'inline-block','padding-top':'10px','padding-left':'20px'}),
                                 html.P("Heritability and directionality patterns we can observe today in modern Eurasians", style={'padding-left':'20px','font-size':'13px','font-weight':'bold','text-align':'center'}),
                                 dcc.Markdown('''
                                 * Heritability enrichment or depletion
