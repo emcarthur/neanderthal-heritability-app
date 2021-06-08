@@ -123,14 +123,14 @@ CONTENT_STYLE = {
     "transition": "margin-left .5s",
     "margin-left": "29rem",
     "margin-right": "2rem",
-    "padding": "2rem 1rem",
+    "padding": "1rem 1rem",
 }
 
 CONTENT_STYLE1 = {
     "transition": "margin-left .5s",
     "margin-left": "2rem",
     "margin-right": "2rem",
-    "padding": "2rem 1rem",
+    "padding": "1rem 1rem",
 }
 
 #### LAYOUT ITEMS ####
@@ -139,7 +139,7 @@ CONTENT_STYLE1 = {
 
 # Question 1 about skew of neanderthal alleles with respect to trait-association
 question1 = dbc.FormGroup([
-    dbc.Label("At the time of introgression, how were the majority of Neanderthal alleles associated with the trait?",style={'font-size':"13px",'font-weight':'bold'},html_for="initialDistSkew"),
+    dbc.Label("At the time of introgression ➀ , how were the majority of Neanderthal alleles associated with the trait?",style={'font-size':"13px",'font-weight':'bold'},html_for="initialDistSkew"),
     html.P('More Neanderthal alleles were:' ,style={'font-size':'11px'}),
     dcc.Slider(
         id='intialDistSkew', min=-3, max=3,
@@ -269,13 +269,14 @@ app.layout = html.Div(
 jumbotron =  dbc.Row([
         html.H3("Visualizing the theoretical evolutionary trajectory of trait-associated Neanderthal-introgressed alleles", style={'font-size':'20px'}),
         dbc.Row([
-            dbc.Col([
-                html.P("2-4% of modern Eurasian genomes are inherited from our Neanderthal ancestors. When introgressed into Eurasians, some variants were likely harmful and lost through drift or selection. Other variants may have provided adaptive benefits to humans as they migrated out of Africa.", className="lead", style={'font-size':'13px'}),
-                html.P("We propose a model that, since hybridization ➀, introgressed variation associated with different traits experienced different evolutionary histories leading to patterns in GWAS we see today ➁. ", className="lead", style={'font-size':'13px'}),
-                ],width=6),
-            dbc.Col(html.Img(src=app.get_asset_url("tree.png"),alt="tree",style={'width':'100%','height':'auto'}),width=6)
-        ]),
-        html.P("We built this tool to explore and visualize some different theoretical trajectories of variants associated with traits. Toggle the sidebar controls (upper left) to explore what might have happened to trait-associated introgressed variants since hybridization.", className="lead", style={'font-size':'13px'}),
+            html.Div([
+                html.Img(src=app.get_asset_url("tree.png"),alt="tree",style={'width':'600px','height':'92px','float':'right'}),
+                html.Div("2-4% of modern Eurasian genomes are inherited from our Neanderthal ancestors. Some introgressed variants were likely harmful and lost through drift or selection. Other variants may have provided adaptive benefits to humans as they migrated out of Africa.", className="lead", style={'font-size':'13px','margin-bottom':'8px'}),
+                html.Div("We propose a model that, since hybridization ➀, introgressed variation associated with different traits experienced different evolutionary histories leading to patterns in GWAS we see today ➁.", className="lead", style={'font-size':'13px','margin-bottom':'8px'}),
+                html.Div("We built this tool to explore and visualize some different theoretical trajectories of variants associated with traits. Toggle the sidebar controls (upper left) to explore!", className="lead", style={'font-size':'13px'}),
+            ])
+        ],style={'margin-right':'0px','margin-left':'0px'}),
+        #html.P("", className="lead", style={'font-size':'13px'}),
     ])
 
 main_page = dbc.Container(
@@ -283,28 +284,24 @@ main_page = dbc.Container(
                 jumbotron,
                 html.Hr(),
                 dbc.Row([
-                    dbc.Col(html.H2("Trait-associated distribution of introgressed variants at hybridization", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=3),
+                    dbc.Col(html.H2("➀ Trait-associated distribution of introgressed variants at hybridization", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=3),
                     dbc.Col(html.H2("Allele frequency trajectory of introgressed variants", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=6),
-                    dbc.Col(html.H2("Trait-associated distribution of REMAINING introgressed variants at present", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=3),
+                    dbc.Col(html.H2("➁ Trait-associated distribution of REMAINING introgressed variants", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=3),
                 ]),
                 dbc.Row([
-                    dbc.Col([dcc.Loading(id = "loading-icon2", children=[html.Div(dcc.Graph(id='dist1_graph'))], type="circle"),
-                                html.Div(html.Img(src=app.get_asset_url("arrow1.png"),alt="arrow",style={'height':'auto','width':'70px'}), style={'text-align':'right','display':'block',})],
+                    dbc.Col([dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='dist1_graph'))], type="circle"),
+                                html.Div(html.Img(src=app.get_asset_url("arrow1.png"),alt="arrow",style={'height':'60px','width':'auto'}), style={'text-align':'right','display':'block',}),
+                                html.Div(html.Img(src=app.get_asset_url("legend.png"),alt="legend",style={'height':'100px','width':'auto'}), style={'text-align':'left','display':'block','padding':'5px'})],
                                 width=3,style={'padding':'0px'}),
                     dbc.Col(dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='af_graph'))], type="circle"),width=6),
-                    dbc.Col([dcc.Loading(id = "loading-icon2", children=[html.Div(dcc.Graph(id='dist2_graph'))], type="circle"),
-                                html.Div(html.Img(src=app.get_asset_url("arrow2.png"),alt="arrow",style={'height':'auto','width':'70px'}), style={'text-align':'left','display':'inline-block','padding-left':'10px'}),
-                                html.Div(html.Img(src=app.get_asset_url("arrow3.png"),alt="arrow",style={'height':'30px','width':'auto'}), style={'text-align':'center','display':'inline-block','padding-top':'10px','padding-left':'20px'}),
-                                html.P("Heritability and directionality patterns we can observe today in modern Eurasians", style={'padding-left':'20px','font-size':'13px','font-weight':'bold','text-align':'center'}),
-                                dcc.Markdown('''
-                                * Heritability enrichment or depletion
-                                    * Enrichment = introgressed variants are MORE associated with the trait (more area under red/blue curve)
-                                    * Depletion = introgressed variants are LESS associated with the trait (less area under red/blue curve)
-                                * Directionality of association
-                                  * Uni-directional = introgressed variants are more associated with risk OR protective directions (distribution skewed to left or right)
-                                  * Bi-directional = introgressed variants are equally associated with risk AND protective directions (distribution centered at zero)
-                                ''' ,style={'font-size':'12px'}) ], width=3,style={'padding':'0px'}),
-                    ])
+                    dbc.Col([dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='dist2_graph'))], type="circle"),
+                        html.Div([
+                            html.Img(src=app.get_asset_url("arrow2.png"),alt="arrow",style={'height':'60px','width':'auto','display':'inline-block'}),
+                            html.Div("Resulting heritability and directionality patterns in GWAS", style={'font-size':'13px','font-weight':'bold','text-align':'left','margin-left':'10px'})
+                        ],style={'display':'flex','align-items':'center'}),
+                        dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='arrow_graph'),style={'display':'inline-block','text-align':'center'})], type="circle")
+                    ], width=3,style={'padding':'0px'}),
+                ])
             ], style={'width':'100%','max-width':'none'}
         )
 
@@ -353,14 +350,13 @@ def render_page_content(pathname):
 
 # Loading figure 1
 @app.callback(Output("loading-icon", "children"), Input("dummy", "children"))
-# Loading figure 2
-@app.callback(Output("loading-icon2", "children"), Input("dummy",'children'))
 
 # Main callback which updates when you click "submit" or any of the example buttons and outputs the two graphs (and updates the parameter control panel)
 @app.callback(
     [Output("af_graph", "figure"),
     Output("dist1_graph", "figure"),
     Output("dist2_graph", "figure"),
+    Output("arrow_graph", "figure"),
     Output("intialDistSkew", "value"),
     Output("riskDecreasingPressure", "value"),
     Output("riskIncreasingPressure", "value"),
@@ -415,14 +411,20 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         minVal = min(abs(i - af_df[af_df['used'] == False]['fitness_weight'])) # find the unused simulation with the fitness_weight closest to the desired weight (i)
         selectedVar = random.choice(af_df[(abs(i - af_df['fitness_weight']) == minVal) &  (af_df['used'] == False)].index)
         af_df.loc[selectedVar,'used'] = True # mark that you have used that simulation
-        af = af_df.loc[selectedVar,[str(x) for x in list(range(500))]].values # select that simulation
+        af = af_df.loc[selectedVar,[str(x) for x in list(range(2000))]].values # select that simulation
         af_fig.add_trace( # plot that simulation
-            go.Scatter(x=list(range(500)), y=af, opacity=0.5, mode='lines',line=dict(color=to_cmap_rgb(fitness_01[idx]),dash=linestyle(af)), name=f'Variant #{idx}: AF: {round(af[-1],2)}', showlegend=False ), #color=cmap(fitness_01[idx]) hoverinfo='skip'
+            go.Scatter(x=list(range(2000)), y=af, opacity=0.5, mode='lines',line=dict(color=to_cmap_rgb(fitness_01[idx]),dash=linestyle(af)), name=f'Variant #{idx}: AF: {round(af[-1],2)}', showlegend=False ), #color=cmap(fitness_01[idx]) hoverinfo='skip'
             )
-        if af[-1] > 0.05: # if variant was not "lost/rare" add it to the variants that remain
+        if af[-1] > 0.01: # if variant was not "lost/rare" add it to the variants that remain
             fitness_remaining.append(fitness_norm[idx])
             fitness_remaining01.append(fitness_01[idx])
 
+    if len(fitness_remaining) == 0:
+        fitness_remaining = [0.011, -0.01]
+        fitness_remaining01 = [0.49,0.51]
+    elif len(fitness_remaining) == 1:
+        fitness_remaining.append(0)
+        fitness_remaining01.append(0.5)
 
     af_fig.update_layout( # update figure 1 layout
         template='simple_white',
@@ -434,8 +436,8 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
             size=9),
     )
     af_fig.update_xaxes( # update figure 1 axis
-        ticktext=["At time of introgression", "At time of modern humans"],
-        tickvals=[50, 450],
+        ticktext=["➀ At time of introgression", "➁ At time of modern humans"],
+        tickvals=[300, 1700],
         fixedrange=True,
         ticklen=0
     )
@@ -452,7 +454,7 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
     kernel = gaussian_kde(fitness_norm)
     kde_y = kernel(xx)
 
-    dist1_fig = make_subplots(rows=2,cols=1,row_heights=[0.8,0.2])
+    dist1_fig = make_subplots(rows=2,cols=1,row_heights=[0.8,0.2],shared_xaxes=True,vertical_spacing=0.04)
     dist1_fig.add_trace(go.Scatter(x=xx, y=kde_y, mode='lines',line=dict(color=to_cmap_rgb(0.5),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
     dist1_fig.add_trace(go.Scatter(x=xx[xx <-1.5], y=kde_y[xx < -1.5], mode='lines',line=dict(color=to_cmap_rgb(0.2),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
     dist1_fig.add_trace(go.Scatter(x=xx[xx >1.5], y=kde_y[xx > 1.5], mode='lines',line=dict(color=to_cmap_rgb(0.8),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
@@ -474,13 +476,14 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
 
     dist1_fig.update_layout( # update figure 2 layout
         template='simple_white',
-        yaxis_title="Number of Variants",
-        yaxis2_title="Variants",
+        yaxis_title="Density",
         xaxis2_title="Trait-association direction",
+        yaxis1={'tickvals':[],'fixedrange':True},
+        yaxis2 = {'tickvals':[0],'ticktext':['%s Variants' % count],'fixedrange':True},
         font=dict(
             size=9),
-        margin=dict(l=10,r=10,t=30,b=10),
-        height=250,
+        margin=dict(l=10,r=10,t=10,b=10),
+        height=140,
     )
     dist1_fig.update_xaxes( # update figure 2 axis
         range=[-4,4],
@@ -489,17 +492,14 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         fixedrange=True,
         ticklen=0
     )
-    dist1_fig.update_yaxes( # update figure 2 axis
-        tickvals=[],
-        fixedrange=True
-    )
 
 # FIGURE 2
+    # FIGURE 2
     xx = np.linspace(-4,4,500)
     kernel = gaussian_kde(fitness_remaining)
     kde_y = kernel(xx)
 
-    dist2_fig = make_subplots(rows=2,cols=1,row_heights=[0.8,0.2])
+    dist2_fig = make_subplots(rows=2,cols=1,row_heights=[0.8,0.2],shared_xaxes=True,vertical_spacing=0.04)
     dist2_fig.add_trace(go.Scatter(x=xx, y=kde_y, mode='lines',line=dict(color=to_cmap_rgb(0.5),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
     dist2_fig.add_trace(go.Scatter(x=xx[xx <-1.5], y=kde_y[xx < -1.5], mode='lines',line=dict(color=to_cmap_rgb(0.2),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
     dist2_fig.add_trace(go.Scatter(x=xx[xx >1.5], y=kde_y[xx > 1.5], mode='lines',line=dict(color=to_cmap_rgb(0.8),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
@@ -521,13 +521,14 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
 
     dist2_fig.update_layout( # update figure 2 layout
         template='simple_white',
-        yaxis_title="Number of Variants",
-        yaxis2_title="Variants",
+        yaxis_title="Density",
         xaxis2_title="Trait-association direction",
+        yaxis1={'tickvals':[],'fixedrange':True},
+        yaxis2 = {'tickvals':[0],'ticktext':['%s Remaining<br>Variants' % len(fitness_remaining)],'fixedrange':True},
         font=dict(
             size=9),
-        margin=dict(l=10,r=10,t=30,b=10),
-        height=250,
+        margin=dict(l=10,r=10,t=10,b=10),
+        height=140,
     )
     dist2_fig.update_xaxes( # update figure 2 axis
         range=[-4,4],
@@ -536,13 +537,81 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         fixedrange=True,
         ticklen=0
     )
-    dist2_fig.update_yaxes( # update figure 2 axis
-        tickvals=[],
-        fixedrange=True
+
+
+    x_arrow_val = (sum(kde_y[xx <-1.5]) + sum(kde_y[xx >1.5])) - 11
+    if x_arrow_val > 0:
+        x_arrow_val = min(max(2,x_arrow_val),10)
+        x_arrow_start = -0.2
+    else:
+        x_arrow_val = max(min(-2,x_arrow_val),-10)
+        x_arrow_start = 0.2
+
+    if (sum(kde_y[xx <-1.5]) == 0) or (sum(kde_y[xx <-1.5]) == 0):
+        y_arrow_val = -10
+    else:
+        y_arrow_val = max(sum(kde_y[xx <-1.5])/sum(kde_y[xx >1.5]),sum(kde_y[xx >1.5])/sum(kde_y[xx <-1.5]))
+        y_arrow_val = 15*np.log10(y_arrow_val/5)
+    if y_arrow_val > 0:
+        y_arrow_val = min(max(2,y_arrow_val),10)
+        y_arrow_start = -0.2
+    else:
+        y_arrow_val = max(min(-2,y_arrow_val),-10)
+        y_arrow_start = 0.2
+
+    arrow_fig = go.Figure()
+    arrow_fig.add_annotation(
+      x=x_arrow_val,  # arrows' head
+      y=y_arrow_val,  # arrows' head
+      ax=x_arrow_start,  # arrows' tail
+      ay=y_arrow_start,  # arrows' tail
+      xref='x',
+      yref='y',
+      axref='x',
+      ayref='y',
+      text='',  # if you want only the arrow
+      showarrow=True,
+      arrowhead=2,
+      arrowsize=1,
+      arrowwidth=3,
+      arrowcolor='gray'
+    )
+    arrow_fig.update_layout(
+        template='simple_white',
+        yaxis_title="Directionality<br>(distribution skew)",
+        xaxis_title="Heritability contribution<br>(weight in distribution tails)",
+        font=dict(
+            size=8),
+        margin=dict(l=10,r=10,t=10,b=10),
+        height=150,
+        width=230,
+    )
+    arrow_fig.update_xaxes( # update figure 2 axis
+        range=[-10,10],
+        ticktext=["Depletion", "Enrichment"],
+        tickvals=[-8, 8],
+        fixedrange=True,
+        ticklen=0,
+        showline=False,
+        mirror=True,
+    )
+    arrow_fig.update_yaxes( # update figure 2 axis
+        range=[-10,10],
+        ticktext=["Bi-directional", "Uni-directional"],
+        tickvals=[-8, 8],
+        fixedrange=True,
+        ticklen=0,
+        showline=False,
+        mirror=True,
     )
 
-    return af_fig, dist1_fig, dist2_fig, intialDistSkew, riskDecreasingPressure, riskIncreasingPressure, count # update the figures and the parameter panels
+    arrow_fig.add_vline(x=0,line_width=1.2, line_color='black',opacity=1)
+    arrow_fig.add_hline(y=0,line_width=1.2,line_color='black',opacity=1)
+
+
+
+    return af_fig, dist1_fig, dist2_fig, arrow_fig, intialDistSkew, riskDecreasingPressure, riskIncreasingPressure, count # update the figures and the parameter panels
 
 
 if __name__ == "__main__":
-    app.run_server()
+    app.run_server(debug=True)
