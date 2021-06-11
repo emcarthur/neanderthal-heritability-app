@@ -6,6 +6,7 @@ from plotly.subplots import make_subplots
 from matplotlib.colors import LinearSegmentedColormap
 
 af_df = pd.read_csv("simulations.csv")
+af_df = pd.concat([af_df,pd.read_csv("simulations_noPressure.csv")],ignore_index=True)
 af_fig = go.Figure()
 fitness_weights = af_df['fitness_weight'].values
 cmap = LinearSegmentedColormap.from_list('BgR',['#0024af','#e2dee6','#b70000']) # generate color map

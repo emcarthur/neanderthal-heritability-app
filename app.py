@@ -83,7 +83,7 @@ def selectFitnessWeights(intialDistSkew, riskDecreasingPressure, riskIncreasingP
 
     fitness_norm = fitness_norm = [skewnorm.ppf(x, intialDistSkew) for x in np.linspace(0.01,0.99,count)]
     fitness_01 = scaleToRange(fitness_norm, realRange=(-2.3,2.3))
-    fitness_weights = [ riskIncreasingPressure/((2.5)**3)*x**3 if x > 0 else -riskDecreasingPressure/((2.5)**3)*x**3 for x in fitness_norm]
+    fitness_weights = [riskIncreasingPressure/((2.5)**3)*x**3 if x > 0 else -riskDecreasingPressure/((2.5)**3)*x**3 for x in fitness_norm]
 
     return (fitness_weights, fitness_norm, fitness_01)
 
@@ -175,11 +175,11 @@ question1 = dbc.FormGroup([
 question2 = dbc.FormGroup([
     dbc.Label("What were the selective pressures on risk-DECREASING alleles?",style={'font-size':"13px",'font-weight':'bold'},html_for="riskDecreasingPressure"),
     dcc.Slider(
-        id='riskDecreasingPressure', min=-0.05, max=0.05,
-        value=-0.01, step=0.0001,
-        marks={-0.05:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
+        id='riskDecreasingPressure', min=-0.03, max=0.03,
+        value=-0.003, step=0.0001,
+        marks={-0.03:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
         0:{'label':'Neutral', 'style':{'font-size':'12px'}},
-        0.05:{'label':'Positive', 'style':{'font-size':'12px'}}}
+        0.03:{'label':'Positive', 'style':{'font-size':'12px'}}}
         ,),
 ])
 
@@ -187,19 +187,19 @@ question2 = dbc.FormGroup([
 question3 = dbc.FormGroup([
     dbc.Label("What were the selective pressures on risk-INCREASING alleles?",style={'font-size':"13px",'font-weight':'bold'},html_for="riskIncreasingPressure"),
     dcc.Slider(
-        id='riskIncreasingPressure', min=-0.05, max=0.05,
-        value=-0.01, step=0.0001,
-        marks={-0.05:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
+        id='riskIncreasingPressure', min=-0.03, max=0.03,
+        value=-0.003, step=0.0001,
+        marks={-0.03:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
         0:{'label':'Neutral', 'style':{'font-size':'12px'}},
-        0.05:{'label':'Positive', 'style':{'font-size':'12px'}}}
+        0.03:{'label':'Positive', 'style':{'font-size':'12px'}}}
         ,),
 ])
 
 # Question 4 about number of variants
 question4 = dbc.FormGroup(
     [
-        dbc.Label("How many variants to visualize? (5-100)", html_for="count", width=9, style={'font-size':"13px",'font-weight':'bold'}),
-        dbc.Col(dbc.Input(type="number", min=5,max=100,step=1, value=30, id='count',style={'font-size':"12px",'margin-top':'5px'}), width=3),
+        dbc.Label("How many variants to visualize? (5-50)", html_for="count", width=9, style={'font-size':"13px",'font-weight':'bold'}),
+        dbc.Col(dbc.Input(type="number", min=5,max=50,step=1, value=10, id='count',style={'font-size':"12px",'margin-top':'5px'}), width=3),
     ],
     row=True,
 )
@@ -287,6 +287,11 @@ app.layout = html.Div(
 #    <div class="pull-left"><img src="YourImage.png"/></div>
 #    <div class="pull-left">Your text goes here......</div>
 # </div>
+# tooltip = html.Div([
+#     html.Span("(and highly oversimplified!!)",id="tooltip-target",style={"textDecoration": "underline", "cursor": "pointer"}),
+#     dbc.Tooltip("DISCLAIMER!: This is a simple qualitative model. It is NOT a forward-time demographically-aware simulation of realistic evolution since introgression. We did not optimize any parameters, nor did we consider pleiotropy or LD. It is meant for illustrative purposes only and a tool for developing intuition for our model.", target="tooltip-target")
+#     ])
+
 jumbotron =  dbc.Row([
         html.H3("Visualizing the theoretical evolutionary trajectory of trait-associated Neanderthal-introgressed alleles", style={'font-size':'20px'}),
         dbc.Row([
@@ -294,7 +299,10 @@ jumbotron =  dbc.Row([
                 html.Img(src=app.get_asset_url("tree.png"),alt="tree",style={'width':'600px','height':'92px','float':'right'}),
                 html.Div("2-4% of modern Eurasian genomes are inherited from our Neanderthal ancestors. Some introgressed variants were likely harmful and lost through drift or selection. Other variants may have provided adaptive benefits to humans as they migrated out of Africa.", className="lead", style={'font-size':'13px','margin-bottom':'8px'}),
                 html.Div("We propose a model that, since hybridization ➀, introgressed variation associated with different traits experienced different evolutionary histories leading to patterns in GWAS we see today ➁.", className="lead", style={'font-size':'13px','margin-bottom':'8px'}),
-                html.Div("We built this tool to explore and visualize some different theoretical trajectories of variants associated with traits. Toggle the sidebar controls (upper left) to explore!", className="lead", style={'font-size':'13px'}),
+                html.Div(["We built this tool to visualize some different theoretical ",
+                    html.Span("(and highly oversimplified!!)",id="tooltip-target",style={"textDecoration": "underline", "cursor": "pointer"}),
+                    dbc.Tooltip("DISCLAIMER!: This is a simple qualitative model. It is NOT a forward-time demographically-aware simulation of realistic evolution since introgression. We did not optimize any parameters, nor did we consider pleiotropy or LD. It is meant for illustrative purposes only and a tool for developing intuition for our model.", target="tooltip-target", style={'font-size':'10px'}),
+                     " trajectories of variants associated with traits. Toggle the sidebar controls (upper left) to explore!"], className="lead", style={'font-size':'13px'}),
             ])
         ],style={'margin-right':'0px','margin-left':'0px'}),
         #html.P("", className="lead", style={'font-size':'13px'}),
@@ -362,12 +370,47 @@ def toggle_sidebar(n, nclick):
     return sidebar_style, content_style, cur_nclick
 
 
+methods = dbc.Container([
+    html.H3("Methods", style={'font-size':'22px'}),
+    dcc.Markdown('''
+    _DISCLAIMER!: This is a simple qualitative model. It is NOT a forward-time demographically-aware simulation of realistic evolution since introgression. We did not optimize any parameters, nor did we consider pleiotropy or LD. It is meant for illustrative purposes only and a tool for developing intuition for our model._
+    ''', className="lead", style={'font-size':'13px'}),
+    html.H3("Simulating allele frequency trajectories", style={'font-size':'18px'}),
+    dcc.Markdown('''
+    With the limitations in mind, this is how we created the allele frequency trajectories:
+
+    - We "simulated" an effective population size of 1861 individuals for 2000 generations. We randomly shuffled 186 "introgressed alleles" into the population. Therefore, at generation 0, the "introgressed" allele frequency is 5% `(186/[2 x 1861])`.
+    - At each subsequent generation, we randomly sampled a pair of individuals from the population (parents) and randomly chose one copy of the allele from each parent to pass on to the offspring (simulating segregation).
+    - This was done 1861 times for each generation to keep the effective population size consistent (1861 new offspring each generation). At each generation, we counted the number of introgressed alleles over the total number of alleles to record the allele frequency.
+    - Repeat for 2000 generations!
+    - To "simulate" selection, fitness weights were applied to parents. For example, if the introgressed allele (a) was less fit than the ancestral allele (A) with a weight of 0.01, the fitness of a parent with AA genotype would be "100% fit" while parent Aa and aa would be 99% and 98% as fit, respectively. When randomly selecting parents to produce offspring, the random selection is weighted by these fitnesses: `[1, 0.99, 0.98]`.
+
+    This procedure and visualization was inspired by [learnPopGen's Shiny app for visualizing Drift & Selection](https://phytools.shinyapps.io/drift-selection/).
+    ''', className="lead", style={'font-size':'13px'}),
+    dbc.Row([dbc.Col([
+        html.H3("Linking trait-associations with fitness", style={'font-size':'18px'}),
+        dcc.Markdown('''
+                Now that we have the allele frequency trajectories linked to fitness weights, we need to determine how this is related to trait-association (denoted by red vs. blue). Different traits affected fitness, and thus selection, differently. So this relationship between trait-association and fitness is determined by the user in the controls. This is controlled by a simple cubic equation and is easiest to visualize in the right figure.
+                ''', className="lead", style={'font-size':'13px'}),
+        html.H3("Web application creation & code", style={'font-size':'18px'}),
+        dcc.Markdown('''
+        If you are looking for the methods to create the website, check out [the code here at my GitHub](https://github.com/emcarthur/neanderthal-heritability-app). I want to acknowledge the powerful, well-documented, and open-source tools used to create this app:
+
+        - [Plotly Dash](https://plotly.com/dash/) (framework for building reactive web applications and interactive figures)
+        - [Dash Bootstrap](https://dash-bootstrap-components.opensource.faculty.ai/) (library of Bootstrap components for Dash)
+        - [Inkscape](https://inkscape.org/) (open source vector graphics editor)
+
+        ''', className="lead", style={'font-size':'13px'})
+        ],width=6),
+        dbc.Col(html.Div(html.Img(src=app.get_asset_url("legend2.jpg"),alt="legend", style={'width':'80%'})), width=6),
+    ]),
+])
 @app.callback(Output("page-content", "children"), [Input("url", "pathname")])
 def render_page_content(pathname):
     if pathname in ["/", ""]:
         return main_page
     elif pathname == "/methods":
-        return html.P("Methods text to come here!")
+        return methods
     # If the user tries to reach a different page, return a 404 message
     return dbc.Jumbotron(
         [
@@ -405,14 +448,13 @@ def render_page_content(pathname):
     ])
 def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPressure, riskIncreasingPressure,count):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] # what button was last pressed
-
     if 'submit' in changed_id: # if submit was last pressed, will use the input state for the 4 parameters
         if count is None: # in case the user sets an invalid "count" value
             count = 20
     elif 'most_example' in changed_id: # if example 1 was last pressed, set the 4 parameters
         intialDistSkew=0
-        riskDecreasingPressure=-0.02
-        riskIncreasingPressure=-0.02
+        riskDecreasingPressure=-0.007
+        riskIncreasingPressure=-0.007
         count=30
     elif 'wbc_example' in changed_id: # if example 2 was last pressed, set the 4 parameters
         intialDistSkew=0
@@ -421,8 +463,8 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         count=30
     elif 'scz_example' in changed_id: # if example 2 was last pressed, set the 4 parameters
         intialDistSkew=1.2
-        riskDecreasingPressure=0.05
-        riskIncreasingPressure=-0.05
+        riskDecreasingPressure=0.03
+        riskIncreasingPressure=-0.03
         count=30
     elif 'sunburn_example' in changed_id: # if example 2 was last pressed, set the 4 parameters
         intialDistSkew=1.5
@@ -430,9 +472,17 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         riskIncreasingPressure=0.025
         count=30
 
+    count = max(5,min(50, count))
     # Pick the variants from the fitness distribution generated from the 4 input parameters
-    fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(intialDistSkew,riskDecreasingPressure,riskIncreasingPressure,count)
+    fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(intialDistSkew,riskDecreasingPressure,riskIncreasingPressure,count-2)
     sim_idxs,fitness_remaining,fitness_remaining01 = selectIndexes(fitness_weights, fitness_norm, fitness_01, af_df.copy(deep=True))
+
+    sim_idxs += random.sample(range(150,158),2)
+    fitness_norm = np.append(fitness_norm, [-0.08, 0.08])
+    fitness_remaining = np.append(fitness_remaining, [-0.08, 0.08])
+    fitness_01 = np.append(fitness_01, [0.51, 0.49])
+    fitness_remaining01 = np.append(fitness_remaining01, [0.51, 0.49])
+
 
     kernel = gaussian_kde(fitness_norm)
     distribution1_yVals = kernel(np.linspace(-4,4,100))
@@ -440,7 +490,8 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
     distribution2_yVals = kernel(np.linspace(-4,4,100))
 
     xx = np.linspace(-4,4,100)
-    x_arrow_val = (sum(distribution2_yVals[xx <-1.5]) + sum(distribution2_yVals[xx >1.5])) - 11
+
+    x_arrow_val = 5*(sum(distribution2_yVals[xx <-1.5]) + sum(distribution2_yVals[xx >1.5])) - 10
     if x_arrow_val > 0:
         x_arrow_val = min(max(2,x_arrow_val),10)
         x_arrow_start = -0.2
@@ -448,18 +499,20 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         x_arrow_val = max(min(-2,x_arrow_val),-10)
         x_arrow_start = 0.2
 
-    if (sum(distribution2_yVals[xx <-1.5]) == 0) or (sum(distribution2_yVals[xx <-1.5]) == 0):
+    if (sum(distribution2_yVals[xx <-1.5]) == 0) or (sum(distribution2_yVals[xx >1.5]) == 0):
+        y_arrow_val = -10
+    elif(sum(distribution2_yVals[xx <-1.5]) < 0.01) and (sum(distribution2_yVals[xx >1.5]) < 0.01):
         y_arrow_val = -10
     else:
         y_arrow_val = max(sum(distribution2_yVals[xx <-1.5])/sum(distribution2_yVals[xx >1.5]),sum(distribution2_yVals[xx >1.5])/sum(distribution2_yVals[xx <-1.5]))
-        y_arrow_val = 15*np.log10(y_arrow_val/5)
+        y_arrow_val = 13*np.log10(y_arrow_val/6)
+
     if y_arrow_val > 0:
         y_arrow_val = min(max(2,y_arrow_val),10)
         y_arrow_start = -0.2
     else:
         y_arrow_val = max(min(-2,y_arrow_val),-10)
         y_arrow_start = 0.2
-
 
     af_fig_callbackData = (sim_idxs, [to_cmap_rgb(x) for x in fitness_01])
     dist_fig1_callbackData = (distribution1_yVals, fitness_norm, [to_cmap_rgb(x) for x in fitness_01])
@@ -512,4 +565,4 @@ app.clientside_callback(
 )
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
