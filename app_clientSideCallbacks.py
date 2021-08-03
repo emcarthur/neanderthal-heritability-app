@@ -14,11 +14,12 @@
 #I was able to completely decouple any figure modification (e.g. adding descriptive shapes, traces, annotations etc.) while keeping the original (large) figure data in a dcc.Store object and not resend it on every update (of the auxiliary data).
 #https://dash.plotly.com/clientside-callbacks
 #### IMPORT DEPENDENCIES ####
+# test
 
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output, State, ClientsideFunction
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
@@ -32,9 +33,7 @@ import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from scipy.stats.kde import gaussian_kde
 from plotly.subplots import make_subplots
-
-
-
+from make_figures import make_afFig, make_distFig, make_arrowFig
 
 app = dash.Dash(__name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
@@ -42,6 +41,11 @@ app = dash.Dash(__name__,
     suppress_callback_exceptions=True
 )
 server = app.server
+
+#### Figure Storage ####
+fig_store = make_afFig()
+fig_store2 = make_distFig()
+fig_store3 = make_arrowFig()
 
 #### FUNCTIONS FOR  AF TRAJECTORY VIZ ####
 
@@ -80,17 +84,30 @@ def selectFitnessWeights(intialDistSkew, riskDecreasingPressure, riskIncreasingP
 
     fitness_norm = fitness_norm = [skewnorm.ppf(x, intialDistSkew) for x in np.linspace(0.01,0.99,count)]
     fitness_01 = scaleToRange(fitness_norm, realRange=(-2.3,2.3))
-    fitness_weights = [ riskIncreasingPressure/((2.5)**3)*x**3 if x > 0 else -riskDecreasingPressure/((2.5)**3)*x**3 for x in fitness_norm]
+    fitness_weights = [riskIncreasingPressure/((2.5)**3)*x**3 if x > 0 else -riskDecreasingPressure/((2.5)**3)*x**3 for x in fitness_norm]
 
     return (fitness_weights, fitness_norm, fitness_01)
+
+def selectIndexes(fitness_weights, fitness_norm,fitness_01, af_df):
+    af_df['used'] = False
+    sim_idxs = []
+    fitness_remaining = []
+    fitness_remaining01 = []
+    for idx, i in enumerate(fitness_weights): # loop through all the variants to plot them
+        minVal = min(abs(i - af_df[af_df['used'] == False]['fitness_weight'])) # find the unused simulation with the fitness_weight closest to the desired weight (i)
+        selectedVar = random.choice(af_df[(abs(i - af_df['fitness_weight']) == minVal) &  (af_df['used'] == False)].index)
+        af_df.loc[selectedVar,'used'] = True # mark that you have used that simulation
+        sim_idxs.append(selectedVar)
+        if af_df.loc[selectedVar][-2] > 0.01: # if variant was not "lost/rare" add it to the variants that remain #change
+            fitness_remaining.append(fitness_norm[idx])
+            fitness_remaining01.append(fitness_01[idx])
+    return sim_idxs,fitness_remaining,fitness_remaining01
 
 #### DATA READ AND INITIALIZE ####
 
 af_df = pd.read_csv("simulations.csv") # read in
 af_df['fitness_weight'] = np.round(af_df['fitness_weight'],3) #!remove
 cmap = LinearSegmentedColormap.from_list('BgR',['#0024af','#e2dee6','#b70000']) # generate color map
-#fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(0,-0.03,-0.03,30) # intial values
-
 
 #### STYLES ####
 # the style arguments for the sidebar. We use position:fixed and a fixed width
@@ -159,11 +176,11 @@ question1 = dbc.FormGroup([
 question2 = dbc.FormGroup([
     dbc.Label("What were the selective pressures on risk-DECREASING alleles?",style={'font-size':"13px",'font-weight':'bold'},html_for="riskDecreasingPressure"),
     dcc.Slider(
-        id='riskDecreasingPressure', min=-0.05, max=0.05,
-        value=-0.01, step=0.0001,
-        marks={-0.05:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
+        id='riskDecreasingPressure', min=-0.03, max=0.03,
+        value=-0.003, step=0.0001,
+        marks={-0.03:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
         0:{'label':'Neutral', 'style':{'font-size':'12px'}},
-        0.05:{'label':'Positive', 'style':{'font-size':'12px'}}}
+        0.03:{'label':'Positive', 'style':{'font-size':'12px'}}}
         ,),
 ])
 
@@ -171,19 +188,19 @@ question2 = dbc.FormGroup([
 question3 = dbc.FormGroup([
     dbc.Label("What were the selective pressures on risk-INCREASING alleles?",style={'font-size':"13px",'font-weight':'bold'},html_for="riskIncreasingPressure"),
     dcc.Slider(
-        id='riskIncreasingPressure', min=-0.05, max=0.05,
-        value=-0.01, step=0.0001,
-        marks={-0.05:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
+        id='riskIncreasingPressure', min=-0.03, max=0.03,
+        value=-0.003, step=0.0001,
+        marks={-0.03:{'label':'Negative', 'style':{'font-size':'12px','width':'20px','text-align':'center'}},
         0:{'label':'Neutral', 'style':{'font-size':'12px'}},
-        0.05:{'label':'Positive', 'style':{'font-size':'12px'}}}
+        0.03:{'label':'Positive', 'style':{'font-size':'12px'}}}
         ,),
 ])
 
 # Question 4 about number of variants
 question4 = dbc.FormGroup(
     [
-        dbc.Label("How many variants to visualize? (5-100)", html_for="count", width=9, style={'font-size':"13px",'font-weight':'bold'}),
-        dbc.Col(dbc.Input(type="number", min=5,max=100,step=1, value=8, id='count',style={'font-size':"12px",'margin-top':'5px'}), width=3),
+        dbc.Label("How many variants to visualize? (5-50)", html_for="count", width=9, style={'font-size':"13px",'font-weight':'bold'}),
+        dbc.Col(dbc.Input(type="number", min=5,max=50,step=1, value=10, id='count',style={'font-size':"12px",'margin-top':'5px'}), width=3),
     ],
     row=True,
 )
@@ -271,6 +288,11 @@ app.layout = html.Div(
 #    <div class="pull-left"><img src="YourImage.png"/></div>
 #    <div class="pull-left">Your text goes here......</div>
 # </div>
+# tooltip = html.Div([
+#     html.Span("(and highly oversimplified!!)",id="tooltip-target",style={"textDecoration": "underline", "cursor": "pointer"}),
+#     dbc.Tooltip("DISCLAIMER!: This is a simple qualitative model. It is NOT a forward-time demographically-aware simulation of realistic evolution since introgression. We did not optimize any parameters, nor did we consider pleiotropy or LD. It is meant for illustrative purposes only and a tool for developing intuition for our model.", target="tooltip-target")
+#     ])
+
 jumbotron =  dbc.Row([
         html.H3("Visualizing the theoretical evolutionary trajectory of trait-associated Neanderthal-introgressed alleles", style={'font-size':'20px'}),
         dbc.Row([
@@ -278,7 +300,10 @@ jumbotron =  dbc.Row([
                 html.Img(src=app.get_asset_url("tree.png"),alt="tree",style={'width':'600px','height':'92px','float':'right'}),
                 html.Div("2-4% of modern Eurasian genomes are inherited from our Neanderthal ancestors. Some introgressed variants were likely harmful and lost through drift or selection. Other variants may have provided adaptive benefits to humans as they migrated out of Africa.", className="lead", style={'font-size':'13px','margin-bottom':'8px'}),
                 html.Div("We propose a model that, since hybridization ➀, introgressed variation associated with different traits experienced different evolutionary histories leading to patterns in GWAS we see today ➁.", className="lead", style={'font-size':'13px','margin-bottom':'8px'}),
-                html.Div("We built this tool to explore and visualize some different theoretical trajectories of variants associated with traits. Toggle the sidebar controls (upper left) to explore!", className="lead", style={'font-size':'13px'}),
+                html.Div(["We built this tool to visualize some different theoretical ",
+                    html.Span("(and highly oversimplified!!)",id="tooltip-target",style={"textDecoration": "underline", "cursor": "pointer"}),
+                    dbc.Tooltip("DISCLAIMER!: This is a simple qualitative model. It is NOT a forward-time demographically-aware simulation of realistic evolution since introgression. We did not optimize any parameters, nor did we consider pleiotropy or LD. It is meant for illustrative purposes only and a tool for developing intuition for our model.", target="tooltip-target", style={'font-size':'10px'}),
+                     " trajectories of variants associated with traits. Toggle the sidebar controls (upper left) to explore!"], className="lead", style={'font-size':'13px'}),
             ])
         ],style={'margin-right':'0px','margin-left':'0px'}),
         #html.P("", className="lead", style={'font-size':'13px'}),
@@ -294,17 +319,27 @@ main_page = dbc.Container(
                     dbc.Col(html.H2("➁ Trait-associated distribution of REMAINING introgressed variants", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=3),
                 ]),
                 dbc.Row([
-                    dbc.Col([dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='dist1_graph'))], type="circle"),
-                                html.Div(html.Img(src=app.get_asset_url("arrow1.png"),alt="arrow",style={'height':'60px','width':'auto'}), style={'text-align':'right','display':'block',}),
-                                html.Div(html.Img(src=app.get_asset_url("legend.png"),alt="legend",style={'height':'100px','width':'auto'}), style={'text-align':'left','display':'block','padding':'5px'})],
-                                width=3,style={'padding':'0px'}),
-                    dbc.Col(dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='af_graph'))], type="circle"),width=6),
-                    dbc.Col([dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='dist2_graph'))], type="circle"),
+                        dbc.Col([dcc.Graph(id='dist1_graph2'),
+                            dcc.Store('store3', data=fig_store2),
+                            dcc.Store('store4'),
+                                                            html.Div(html.Img(src=app.get_asset_url("arrow1.png"),alt="arrow",style={'height':'60px','width':'auto'}), style={'text-align':'right','display':'block',}),
+                                                            html.Div(html.Img(src=app.get_asset_url("legend.png"),alt="legend",style={'height':'100px','width':'auto'}), style={'text-align':'left','display':'block','padding':'5px'}),
+                        ],width=3,style={'padding':'0px'}),
+                    dbc.Col([
+                        dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='af_graph2'))], type="circle"),
+                            dcc.Store(id='store', data=fig_store),
+                            dcc.Store(id='store2'),
+                    ],width=6),
+                    dbc.Col([dcc.Graph(id='dist2_graph2'),
+                        dcc.Store('store5', data=fig_store2),
+                        dcc.Store('store6'),
                         html.Div([
                             html.Img(src=app.get_asset_url("arrow2.png"),alt="arrow",style={'height':'60px','width':'auto','display':'inline-block'}),
                             html.Div("Resulting heritability and directionality patterns in GWAS", style={'font-size':'13px','font-weight':'bold','text-align':'left','margin-left':'10px'})
                         ],style={'display':'flex','align-items':'center'}),
-                        dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='arrow_graph'),style={'display':'inline-block','text-align':'center'})], type="circle")
+                        html.Div(dcc.Graph(id='arrow_graph'),style={'display':'inline-block','text-align':'center'}),
+                        dcc.Store(id='store7', data=fig_store3),
+                        dcc.Store(id='store8'),
                     ], width=3,style={'padding':'0px'}),
                 ])
             ], style={'width':'100%','max-width':'none'}
@@ -336,12 +371,47 @@ def toggle_sidebar(n, nclick):
     return sidebar_style, content_style, cur_nclick
 
 
+methods = dbc.Container([
+    html.H3("Methods", style={'font-size':'22px'}),
+    dcc.Markdown('''
+    _DISCLAIMER!: This is a simple qualitative model. It is NOT a forward-time demographically-aware simulation of realistic evolution since introgression. We did not optimize any parameters, nor did we consider pleiotropy or LD. It is meant for illustrative purposes only and a tool for developing intuition for our model._
+    ''', className="lead", style={'font-size':'13px'}),
+    html.H3("Simulating allele frequency trajectories", style={'font-size':'18px'}),
+    dcc.Markdown('''
+    With the limitations in mind, this is how we created the allele frequency trajectories:
+
+    - We "simulated" an effective population size of 1861 individuals for 2000 generations. We randomly shuffled 186 "introgressed alleles" into the population. Therefore, at generation 0, the "introgressed" allele frequency is 5% `(186/[2 x 1861])`.
+    - At each subsequent generation, we randomly sampled a pair of individuals from the population (parents) and randomly chose one copy of the allele from each parent to pass on to the offspring (simulating segregation).
+    - This was done 1861 times for each generation to keep the effective population size consistent (1861 new offspring each generation). At each generation, we counted the number of introgressed alleles over the total number of alleles to record the allele frequency.
+    - Repeat for 2000 generations!
+    - To "simulate" selection, fitness weights were applied to parents. For example, if the introgressed allele (a) was less fit than the ancestral allele (A) with a weight of 0.01, the fitness of a parent with AA genotype would be "100% fit" while parent Aa and aa would be 99% and 98% as fit, respectively. When randomly selecting parents to produce offspring, the random selection is weighted by these fitnesses: `[1, 0.99, 0.98]`.
+
+    This procedure and visualization was inspired by [learnPopGen's Shiny app for visualizing Drift & Selection](https://phytools.shinyapps.io/drift-selection/).
+    ''', className="lead", style={'font-size':'13px'}),
+    dbc.Row([dbc.Col([
+        html.H3("Linking trait-associations with fitness", style={'font-size':'18px'}),
+        dcc.Markdown('''
+                Now that we have the allele frequency trajectories linked to fitness weights, we need to determine how this is related to trait-association (denoted by red vs. blue). Different traits affected fitness, and thus selection, differently. So this relationship between trait-association and fitness is determined by the user in the controls. This is controlled by a simple cubic equation and is easiest to visualize in the right figure.
+                ''', className="lead", style={'font-size':'13px'}),
+        html.H3("Web application creation & code", style={'font-size':'18px'}),
+        dcc.Markdown('''
+        If you are looking for the methods to create the website, check out [the code here at my GitHub](https://github.com/emcarthur/neanderthal-heritability-app). I want to acknowledge the powerful, well-documented, and open-source tools used to create this app:
+
+        - [Plotly Dash](https://plotly.com/dash/) (framework for building reactive web applications and interactive figures)
+        - [Dash Bootstrap](https://dash-bootstrap-components.opensource.faculty.ai/) (library of Bootstrap components for Dash)
+        - [Inkscape](https://inkscape.org/) (open source vector graphics editor)
+
+        ''', className="lead", style={'font-size':'13px'})
+        ],width=6),
+        dbc.Col(html.Div(html.Img(src=app.get_asset_url("legend2.jpg"),alt="legend", style={'width':'80%'})), width=6),
+    ]),
+])
 @app.callback(Output("page-content", "children"), [Input("url", "pathname")])
 def render_page_content(pathname):
     if pathname in ["/", ""]:
         return main_page
     elif pathname == "/methods":
-        return html.P("Methods text to come here!")
+        return methods
     # If the user tries to reach a different page, return a 404 message
     return dbc.Jumbotron(
         [
@@ -357,15 +427,16 @@ def render_page_content(pathname):
 @app.callback(Output("loading-icon", "children"), Input("dummy", "children"))
 
 # Main callback which updates when you click "submit" or any of the example buttons and outputs the two graphs (and updates the parameter control panel)
+
 @app.callback(
-    [Output("af_graph", "figure"),
-    Output("dist1_graph", "figure"),
-    Output("dist2_graph", "figure"),
-    Output("arrow_graph", "figure"),
-    Output("intialDistSkew", "value"),
+    [Output("intialDistSkew", "value"),
     Output("riskDecreasingPressure", "value"),
     Output("riskIncreasingPressure", "value"),
-    Output("count", "value")],
+    Output("count", "value"),
+    Output('store2', 'data'),
+    Output('store4','data'),
+    Output('store6','data'),
+    Output('store8','data')],
     [Input("submit","n_clicks"),
     Input("most_example","n_clicks"),
     Input("wbc_example","n_clicks"),
@@ -378,14 +449,13 @@ def render_page_content(pathname):
     ])
 def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPressure, riskIncreasingPressure,count):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] # what button was last pressed
-
     if 'submit' in changed_id: # if submit was last pressed, will use the input state for the 4 parameters
         if count is None: # in case the user sets an invalid "count" value
             count = 20
     elif 'most_example' in changed_id: # if example 1 was last pressed, set the 4 parameters
         intialDistSkew=0
-        riskDecreasingPressure=-0.02
-        riskIncreasingPressure=-0.02
+        riskDecreasingPressure=-0.007
+        riskIncreasingPressure=-0.007
         count=30
     elif 'wbc_example' in changed_id: # if example 2 was last pressed, set the 4 parameters
         intialDistSkew=0
@@ -394,8 +464,8 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         count=30
     elif 'scz_example' in changed_id: # if example 2 was last pressed, set the 4 parameters
         intialDistSkew=1.2
-        riskDecreasingPressure=0.05
-        riskIncreasingPressure=-0.05
+        riskDecreasingPressure=0.03
+        riskIncreasingPressure=-0.03
         count=30
     elif 'sunburn_example' in changed_id: # if example 2 was last pressed, set the 4 parameters
         intialDistSkew=1.5
@@ -403,148 +473,26 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         riskIncreasingPressure=0.025
         count=30
 
+    count = max(5,min(50, count))
     # Pick the variants from the fitness distribution generated from the 4 input parameters
-    fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(intialDistSkew,riskDecreasingPressure,riskIncreasingPressure,count)
-    af_df['used'] = False
-    fitness_remaining = []
-    fitness_remaining01 = []
+    fitness_weights, fitness_norm, fitness_01 = selectFitnessWeights(intialDistSkew,riskDecreasingPressure,riskIncreasingPressure,count-2)
+    sim_idxs,fitness_remaining,fitness_remaining01 = selectIndexes(fitness_weights, fitness_norm, fitness_01, af_df.copy(deep=True))
 
-    # FIGURE 1
-    af_fig = go.Figure()
+    sim_idxs += random.sample(range(150,158),2)
+    fitness_norm = np.append(fitness_norm, [-0.08, 0.08])
+    fitness_remaining = np.append(fitness_remaining, [-0.08, 0.08])
+    fitness_01 = np.append(fitness_01, [0.51, 0.49])
+    fitness_remaining01 = np.append(fitness_remaining01, [0.51, 0.49])
 
-    for idx, i in enumerate(fitness_weights): # loop through all the variants to plot them
-        minVal = min(abs(i - af_df[af_df['used'] == False]['fitness_weight'])) # find the unused simulation with the fitness_weight closest to the desired weight (i)
-        selectedVar = random.choice(af_df[(abs(i - af_df['fitness_weight']) == minVal) &  (af_df['used'] == False)].index)
-        af_df.loc[selectedVar,'used'] = True # mark that you have used that simulation
-        af = af_df.loc[selectedVar,[str(x) for x in list(range(10))]].values # select that simulation
-        af_fig.add_trace( # plot that simulation
-            go.Scatter(x=list(range(10)), y=af, opacity=0.5, mode='lines',line=dict(color=to_cmap_rgb(fitness_01[idx]),dash=linestyle(af)), name=f'Variant #{idx}: AF: {round(af[-1],2)}', showlegend=False ), #color=cmap(fitness_01[idx]) hoverinfo='skip'
-            )
-        if af[-1] > 0.01: # if variant was not "lost/rare" add it to the variants that remain
-            fitness_remaining.append(fitness_norm[idx])
-            fitness_remaining01.append(fitness_01[idx])
 
-    if len(fitness_remaining) == 0:
-        fitness_remaining = [0.011, -0.01]
-        fitness_remaining01 = [0.49,0.51]
-    elif len(fitness_remaining) == 1:
-        fitness_remaining.append(0)
-        fitness_remaining01.append(0.5)
-
-    af_fig.update_layout( # update figure 1 layout
-        template='simple_white',
-        xaxis_title="Generations",
-        yaxis_title="Allele frequency",
-        height=360,
-        margin=dict(l=40,r=20,t=0,b=10),
-        font=dict(
-            size=9),
-    )
-    af_fig.update_xaxes( # update figure 1 axis
-        ticktext=["➀ At time of introgression", "➁ At time of modern humans"],
-        tickvals=[300, 1700],
-        fixedrange=True,
-        ticklen=0
-    )
-    af_fig.update_yaxes( # update figure 1 axis
-        range=[0,1],
-        tickvals=[0,0.05,0.2, 0.5,1],
-        ticktext=["Lost alleles","Rare","Common","High Frequency", "Fixed"],
-        fixedrange=True,
-        ticklen=0
-    )
-
-    # FIGURE 2
-    xx = np.linspace(-4,4,500)
     kernel = gaussian_kde(fitness_norm)
-    kde_y = kernel(xx)
-
-    dist1_fig = make_subplots(rows=2,cols=1,row_heights=[0.8,0.2],shared_xaxes=True,vertical_spacing=0.04)
-    dist1_fig.add_trace(go.Scatter(x=xx, y=kde_y, mode='lines',line=dict(color=to_cmap_rgb(0.5),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
-    dist1_fig.add_trace(go.Scatter(x=xx[xx <-1.5], y=kde_y[xx < -1.5], mode='lines',line=dict(color=to_cmap_rgb(0.2),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
-    dist1_fig.add_trace(go.Scatter(x=xx[xx >1.5], y=kde_y[xx > 1.5], mode='lines',line=dict(color=to_cmap_rgb(0.8),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
-    dist1_fig.add_vline(x=0,line_width=1.2,line_dash="dot", line_color='black',row=1,col=1)
-    for i,j in zip(fitness_norm,fitness_01):
-        dist1_fig.add_trace(go.Box(
-            x=np.array(i),
-            y=np.array(0),
-            marker_symbol='line-ns-open',
-            marker_color=to_cmap_rgb(j),
-            boxpoints='all',
-            jitter=0,
-            fillcolor='rgba(255,255,255,0)',
-            line_color='rgba(255,255,255,0)',
-            hoverinfo='skip',
-            showlegend=False,
-        ), row=2, col=1)
-
-
-    dist1_fig.update_layout( # update figure 2 layout
-        template='simple_white',
-        yaxis_title="Density",
-        xaxis2_title="Trait-association direction",
-        yaxis1={'tickvals':[],'fixedrange':True},
-        yaxis2 = {'tickvals':[0],'ticktext':['%s Variants' % count],'fixedrange':True},
-        font=dict(
-            size=9),
-        margin=dict(l=10,r=10,t=10,b=10),
-        height=140,
-    )
-    dist1_fig.update_xaxes( # update figure 2 axis
-        range=[-4,4],
-        ticktext=["Protective", "No trait-association","Risk"],
-        tickvals=[-3.5, 0, 3.5],
-        fixedrange=True,
-        ticklen=0
-    )
-
-# FIGURE 2
-    # FIGURE 2
-    xx = np.linspace(-4,4,500)
+    distribution1_yVals = kernel(np.linspace(-4,4,100))
     kernel = gaussian_kde(fitness_remaining)
-    kde_y = kernel(xx)
+    distribution2_yVals = kernel(np.linspace(-4,4,100))
 
-    dist2_fig = make_subplots(rows=2,cols=1,row_heights=[0.8,0.2],shared_xaxes=True,vertical_spacing=0.04)
-    dist2_fig.add_trace(go.Scatter(x=xx, y=kde_y, mode='lines',line=dict(color=to_cmap_rgb(0.5),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
-    dist2_fig.add_trace(go.Scatter(x=xx[xx <-1.5], y=kde_y[xx < -1.5], mode='lines',line=dict(color=to_cmap_rgb(0.2),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
-    dist2_fig.add_trace(go.Scatter(x=xx[xx >1.5], y=kde_y[xx > 1.5], mode='lines',line=dict(color=to_cmap_rgb(0.8),dash='solid'), showlegend=False,hoverinfo='skip',fill='tozeroy'),row=1,col=1)#, #color=cmap(fitness_01[idx]) )
-    dist2_fig.add_vline(x=0,line_width=1.2,line_dash="dot", line_color='black',row=1,col=1)
-    for i,j in zip(fitness_remaining,fitness_remaining01):
-        dist2_fig.add_trace(go.Box(
-            x=np.array(i),
-            y=np.array(0),
-            marker_symbol='line-ns-open',
-            marker_color=to_cmap_rgb(j),
-            boxpoints='all',
-            jitter=0,
-            fillcolor='rgba(255,255,255,0)',
-            line_color='rgba(255,255,255,0)',
-            hoverinfo='skip',
-            showlegend=False,
-        ), row=2, col=1)
+    xx = np.linspace(-4,4,100)
 
-
-    dist2_fig.update_layout( # update figure 2 layout
-        template='simple_white',
-        yaxis_title="Density",
-        xaxis2_title="Trait-association direction",
-        yaxis1={'tickvals':[],'fixedrange':True},
-        yaxis2 = {'tickvals':[0],'ticktext':['%s Remaining<br>Variants' % len(fitness_remaining)],'fixedrange':True},
-        font=dict(
-            size=9),
-        margin=dict(l=10,r=10,t=10,b=10),
-        height=140,
-    )
-    dist2_fig.update_xaxes( # update figure 2 axis
-        range=[-4,4],
-        ticktext=["Protective", "No trait-association","Risk"],
-        tickvals=[-3.5, 0, 3.5],
-        fixedrange=True,
-        ticklen=0
-    )
-
-
-    x_arrow_val = (sum(kde_y[xx <-1.5]) + sum(kde_y[xx >1.5])) - 11
+    x_arrow_val = 5*(sum(distribution2_yVals[xx <-1.5]) + sum(distribution2_yVals[xx >1.5])) - 10
     if x_arrow_val > 0:
         x_arrow_val = min(max(2,x_arrow_val),10)
         x_arrow_start = -0.2
@@ -552,11 +500,14 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         x_arrow_val = max(min(-2,x_arrow_val),-10)
         x_arrow_start = 0.2
 
-    if (sum(kde_y[xx <-1.5]) == 0) or (sum(kde_y[xx <-1.5]) == 0):
+    if (sum(distribution2_yVals[xx <-1.5]) == 0) or (sum(distribution2_yVals[xx >1.5]) == 0):
+        y_arrow_val = -10
+    elif(sum(distribution2_yVals[xx <-1.5]) < 0.01) and (sum(distribution2_yVals[xx >1.5]) < 0.01):
         y_arrow_val = -10
     else:
-        y_arrow_val = max(sum(kde_y[xx <-1.5])/sum(kde_y[xx >1.5]),sum(kde_y[xx >1.5])/sum(kde_y[xx <-1.5]))
-        y_arrow_val = 15*np.log10(y_arrow_val/5)
+        y_arrow_val = max(sum(distribution2_yVals[xx <-1.5])/sum(distribution2_yVals[xx >1.5]),sum(distribution2_yVals[xx >1.5])/sum(distribution2_yVals[xx <-1.5]))
+        y_arrow_val = 13*np.log10(y_arrow_val/6)
+
     if y_arrow_val > 0:
         y_arrow_val = min(max(2,y_arrow_val),10)
         y_arrow_start = -0.2
@@ -564,60 +515,55 @@ def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPres
         y_arrow_val = max(min(-2,y_arrow_val),-10)
         y_arrow_start = 0.2
 
-    arrow_fig = go.Figure()
-    arrow_fig.add_annotation(
-      x=x_arrow_val,  # arrows' head
-      y=y_arrow_val,  # arrows' head
-      ax=x_arrow_start,  # arrows' tail
-      ay=y_arrow_start,  # arrows' tail
-      xref='x',
-      yref='y',
-      axref='x',
-      ayref='y',
-      text='',  # if you want only the arrow
-      showarrow=True,
-      arrowhead=2,
-      arrowsize=1,
-      arrowwidth=3,
-      arrowcolor='gray'
-    )
-    arrow_fig.update_layout(
-        template='simple_white',
-        yaxis_title="Directionality<br>(distribution skew)",
-        xaxis_title="Heritability contribution<br>(weight in distribution tails)",
-        font=dict(
-            size=8),
-        margin=dict(l=10,r=10,t=10,b=10),
-        height=150,
-        width=230,
-    )
-    arrow_fig.update_xaxes( # update figure 2 axis
-        range=[-10,10],
-        ticktext=["Depletion", "Enrichment"],
-        tickvals=[-8, 8],
-        fixedrange=True,
-        ticklen=0,
-        showline=False,
-        mirror=True,
-    )
-    arrow_fig.update_yaxes( # update figure 2 axis
-        range=[-10,10],
-        ticktext=["Bi-directional", "Uni-directional"],
-        tickvals=[-8, 8],
-        fixedrange=True,
-        ticklen=0,
-        showline=False,
-        mirror=True,
-    )
+    af_fig_callbackData = (sim_idxs, [to_cmap_rgb(x) for x in fitness_01])
+    dist_fig1_callbackData = (distribution1_yVals, fitness_norm, [to_cmap_rgb(x) for x in fitness_01])
+    dist_fig2_callbackData = (distribution2_yVals, fitness_remaining, [to_cmap_rgb(x) for x in fitness_remaining01])
+    arrow_fig_callbackData =  (x_arrow_val, x_arrow_start, y_arrow_val, y_arrow_start)
 
-    arrow_fig.add_vline(x=0,line_width=1.2, line_color='black',opacity=1)
-    arrow_fig.add_hline(y=0,line_width=1.2,line_color='black',opacity=1)
+    return intialDistSkew, riskDecreasingPressure, riskIncreasingPressure, count, af_fig_callbackData, dist_fig1_callbackData, dist_fig2_callbackData, arrow_fig_callbackData # update the figures and the parameter panels
 
-    af_fig.write_html("test4.html", include_plotlyjs='directory')
+#### CLIENT-SIDE CALLBACKS ####
 
 
-    return af_fig, dist1_fig, dist2_fig, arrow_fig, intialDistSkew, riskDecreasingPressure, riskIncreasingPressure, count # update the figures and the parameter panels
+app.clientside_callback(
+    ClientsideFunction(
+        namespace='clientside',
+        function_name='update_figure'
+    ),
+    output=Output('af_graph2', 'figure'),
+    inputs=[Input('store2', 'data')],
+    state=[State('store', 'data')],
+)
 
+app.clientside_callback(
+    ClientsideFunction(
+        namespace='clientside2',
+        function_name='update_figure2'
+    ),
+    output=Output('dist1_graph2', 'figure'),
+    inputs=[Input('store4', 'data')],
+    state=[State('store3', 'data')],
+)
+
+app.clientside_callback(
+    ClientsideFunction(
+        namespace='clientside2',
+        function_name='update_figure2'
+    ),
+    output=Output('dist2_graph2', 'figure'),
+    inputs=[Input('store6', 'data')],
+    state=[State('store5', 'data')],
+)
+
+app.clientside_callback(
+    ClientsideFunction(
+        namespace='clientside3',
+        function_name='update_figure3'
+    ),
+    output=Output('arrow_graph', 'figure'),
+    inputs=[Input('store8', 'data')],
+    state=[State('store7', 'data')],
+)
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
