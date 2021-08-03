@@ -14,6 +14,7 @@
 #I was able to completely decouple any figure modification (e.g. adding descriptive shapes, traces, annotations etc.) while keeping the original (large) figure data in a dcc.Store object and not resend it on every update (of the auxiliary data).
 #https://dash.plotly.com/clientside-callbacks
 #### IMPORT DEPENDENCIES ####
+# test
 
 import dash
 import dash_core_components as dcc
