@@ -33,7 +33,8 @@ import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from scipy.stats.kde import gaussian_kde
 from plotly.subplots import make_subplots
-from make_figures import make_afFig, make_distFig, make_arrowFig
+#from make_figures import make_afFig, make_distFig, make_arrowFig
+import plotly.io
 
 app = dash.Dash(__name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
@@ -43,9 +44,15 @@ app = dash.Dash(__name__,
 server = app.server
 
 #### Figure Storage ####
-fig_store = make_afFig()
-fig_store2 = make_distFig()
-fig_store3 = make_arrowFig()
+#fig_store = make_afFig()
+#fig_store.write_json("fig_store.json")
+fig_store = plotly.io.read_json("fig_store.json")
+#fig_store2 = make_distFig()
+#fig_store2.write_json("fig_store2.json")
+fig_store2 = plotly.io.read_json("fig_store2.json")
+#fig_store3 = make_arrowFig()
+#fig_store3.write_json("fig_store3.json")
+fig_store3 = plotly.io.read_json("fig_store3.json")
 
 #### FUNCTIONS FOR  AF TRAJECTORY VIZ ####
 
