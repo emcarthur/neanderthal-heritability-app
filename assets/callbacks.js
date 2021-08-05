@@ -1,10 +1,10 @@
 if (!window.dash_clientside) {
     window.dash_clientside = {}
 }
-window.dash_clientside.clientside = {
-    update_figure: function(indexes, store) {
-      var sim_idxs = indexes[0]
-      var colors = indexes[1]
+window.dash_clientside.clientsideAF = {
+    update_affigure: function(indexes, store) {
+      var sim_idxs = indexes[0];
+      var colors = indexes[1];
       var fig = store;
       var new_fig = {};
 
@@ -18,8 +18,8 @@ window.dash_clientside.clientside = {
     }
 };
 
-window.dash_clientside.clientside2 = {
-    update_figure2: function(inputValues,store) {
+window.dash_clientside.clientsideDist = {
+    update_distfigure: function(inputValues,store) {
       var y_dist_vals = inputValues[0];
       var traitAssociation = inputValues[1];
       var colors = inputValues[2];
@@ -68,8 +68,8 @@ window.dash_clientside.clientside2 = {
   }
 };
 
-window.dash_clientside.clientside3 = {
-    update_figure3: function(inputValues,store) {
+window.dash_clientside.clientsideArrow = {
+    update_Arrowfigure: function(inputValues,store) {
       var x_arrow_val = inputValues[0];
       var x_arrow_start = inputValues[1];
       var y_arrow_val = inputValues[2];
