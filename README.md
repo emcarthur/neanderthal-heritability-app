@@ -80,6 +80,7 @@ Check out [https://neanderthal-heritability.herokuapp.com/methods](https://neand
 ### Other code
 
 ```python
+# to create allele frequency trajectory simulations
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
