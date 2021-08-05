@@ -33,8 +33,11 @@ import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from scipy.stats.kde import gaussian_kde
 from plotly.subplots import make_subplots
-#from make_figures import make_afFig, make_distFig, make_arrowFig
 import plotly.io
+import time
+#from make_figures import make_afFig, make_distFig, make_arrowFig
+
+
 
 app = dash.Dash(__name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
@@ -321,8 +324,14 @@ main_page = dbc.Container(
                 jumbotron,
                 html.Hr(),
                 dbc.Row([
+
+
+
                     dbc.Col(html.H2("➀ Trait-associated distribution of introgressed variants at hybridization", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=3),
-                    dbc.Col(html.H2("Allele frequency trajectory of introgressed variants", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=6),
+                    dbc.Col(
+                        [html.H2("Allele frequency trajectory of introgressed variants", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),
+                        html.Div(dcc.Loading(id = "loading-icon-3", children=["HELLO"], type="circle"), style={'visibility': 'visible'}),
+                        ],width=6),
                     dbc.Col(html.H2("➁ Trait-associated distribution of REMAINING introgressed variants", className="display-4", style={'font-size':'14px','font-weight':'bold','text-align':'center'}),width=3),
                 ]),
                 dbc.Row([
@@ -333,6 +342,7 @@ main_page = dbc.Container(
                                                             html.Div(html.Img(src=app.get_asset_url("legend.png"),alt="legend",style={'height':'100px','width':'auto'}), style={'text-align':'left','display':'block','padding':'5px'}),
                         ],width=3,style={'padding':'0px'}),
                     dbc.Col([
+
                         dcc.Loading(id = "loading-icon", children=[html.Div(dcc.Graph(id='af_graph2'))], type="circle"),
                             dcc.Store(id='store', data=fig_store),
                             dcc.Store(id='store2'),
@@ -430,8 +440,10 @@ def render_page_content(pathname):
 
 #### CALLBACKS AND INTERACTIVE CONTENT ####
 
-# Loading figure 1
-@app.callback(Output("loading-icon", "children"), Input("dummy", "children"))
+@app.callback(Output("loading-icon-3", "children"), Input("submit","n_clicks"))
+def loading_bar(n_clicks):
+    time.sleep(0.6)
+    return ""
 
 # Main callback which updates when you click "submit" or any of the example buttons and outputs the two graphs (and updates the parameter control panel)
 
@@ -443,7 +455,7 @@ def render_page_content(pathname):
     Output('store2', 'data'),
     Output('store4','data'),
     Output('store6','data'),
-    Output('store8','data')],
+    Output('store8','data'),],
     [Input("submit","n_clicks"),
     Input("most_example","n_clicks"),
     Input("wbc_example","n_clicks"),
@@ -455,6 +467,7 @@ def render_page_content(pathname):
     State("count", "value"),
     ])
 def update_graph(btn1, btn2, btn3, btn4, btn5, intialDistSkew,riskDecreasingPressure, riskIncreasingPressure,count):
+    #time.sleep(3)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0] # what button was last pressed
     if 'submit' in changed_id: # if submit was last pressed, will use the input state for the 4 parameters
         if count is None: # in case the user sets an invalid "count" value
